@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "noEmit": false,
+    "outDir": ".temp-tests",
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*.test.ts", "src/test/**/*.d.ts"],
+  "exclude": ["src/**/*.tsx"]
+}

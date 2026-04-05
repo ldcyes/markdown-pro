@@ -1,9 +1,83 @@
 :root {
-  color: #111827;
-  background:
-    radial-gradient(circle at top, rgba(251, 191, 36, 0.18), transparent 38%),
-    linear-gradient(180deg, #fbf7ef 0%, #f4efe4 100%);
+  --editor-frame-border: rgba(180, 83, 9, 0.18);
+  --editor-frame-bg: rgba(255, 252, 246, 0.9);
+  --editor-frame-shadow:
+    0 18px 40px rgba(120, 53, 15, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --editor-meta-border: rgba(180, 83, 9, 0.14);
+  --editor-meta-bg: linear-gradient(180deg, rgba(255, 250, 240, 0.92), #fffaf0);
+  --editor-label: #92400e;
+  --editor-muted: #6b7280;
+  --toolbar-border: rgba(180, 83, 9, 0.12);
+  --toolbar-bg:
+    linear-gradient(180deg, rgba(255, 251, 245, 0.82), rgba(255, 251, 245, 0.94)),
+    radial-gradient(circle at left top, rgba(251, 191, 36, 0.14), transparent 42%);
+  --tool-border: rgba(180, 83, 9, 0.18);
+  --tool-bg: rgba(255, 255, 255, 0.92);
+  --tool-text: #7c2d12;
+  --tool-active-border: rgba(217, 119, 6, 0.44);
+  --tool-active-bg: rgba(251, 191, 36, 0.16);
+  --tool-file-bg: linear-gradient(180deg, #f59e0b, #d97706);
+  --tool-file-text: #fffaf0;
+  --sidebar-border: rgba(180, 83, 9, 0.12);
+  --sidebar-bg:
+    linear-gradient(180deg, rgba(255, 249, 240, 0.8), rgba(255, 252, 248, 0.96)),
+    radial-gradient(circle at top, rgba(217, 119, 6, 0.08), transparent 42%);
+  --sidebar-label: #b45309;
+  --outline-text: #6b7280;
+  --outline-accent: #b45309;
+  --outline-hover-bg: rgba(251, 191, 36, 0.12);
+  --outline-active-bg: rgba(217, 119, 6, 0.12);
+  --outline-active-ring: rgba(217, 119, 6, 0.18);
+  --surface-bg: #fffdf8;
+  --surface-border: rgba(120, 53, 15, 0.1);
+  --surface-text: #1f2937;
+  --surface-focus-border: rgba(217, 119, 6, 0.45);
+  --surface-focus-ring: rgba(251, 191, 36, 0.16);
+  --code-bg: #1f2937;
+  --code-text: #f9fafb;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+.dark {
+  color-scheme: dark;
+  --editor-frame-border: rgba(245, 158, 11, 0.16);
+  --editor-frame-bg: rgba(15, 23, 42, 0.74);
+  --editor-frame-shadow:
+    0 18px 40px rgba(2, 6, 23, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --editor-meta-border: rgba(245, 158, 11, 0.14);
+  --editor-meta-bg: linear-gradient(180deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.92));
+  --editor-label: #fbbf24;
+  --editor-muted: #cbd5e1;
+  --toolbar-border: rgba(245, 158, 11, 0.12);
+  --toolbar-bg:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.92)),
+    radial-gradient(circle at left top, rgba(245, 158, 11, 0.14), transparent 42%);
+  --tool-border: rgba(245, 158, 11, 0.18);
+  --tool-bg: rgba(30, 41, 59, 0.88);
+  --tool-text: #f8fafc;
+  --tool-active-border: rgba(251, 191, 36, 0.3);
+  --tool-active-bg: rgba(245, 158, 11, 0.18);
+  --tool-file-bg: linear-gradient(180deg, #d97706, #b45309);
+  --tool-file-text: #fff7ed;
+  --sidebar-border: rgba(245, 158, 11, 0.12);
+  --sidebar-bg:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.88), rgba(15, 23, 42, 0.96)),
+    radial-gradient(circle at top, rgba(245, 158, 11, 0.1), transparent 42%);
+  --sidebar-label: #fbbf24;
+  --outline-text: #cbd5e1;
+  --outline-accent: #fbbf24;
+  --outline-hover-bg: rgba(251, 191, 36, 0.12);
+  --outline-active-bg: rgba(251, 191, 36, 0.14);
+  --outline-active-ring: rgba(251, 191, 36, 0.14);
+  --surface-bg: rgba(15, 23, 42, 0.84);
+  --surface-border: rgba(245, 158, 11, 0.14);
+  --surface-text: #e2e8f0;
+  --surface-focus-border: rgba(251, 191, 36, 0.48);
+  --surface-focus-ring: rgba(251, 191, 36, 0.18);
+  --code-bg: rgba(2, 6, 23, 0.92);
+  --code-text: #f8fafc;
 }
 
 * {
@@ -14,54 +88,20 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  color: inherit;
+  background: transparent;
 }
 
 #root {
   min-height: 100vh;
 }
 
-.app-shell {
-  width: min(1040px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 48px 0 64px;
-}
-
-.hero {
-  margin-bottom: 24px;
-}
-
-.hero__eyebrow {
-  margin: 0 0 8px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #b45309;
-}
-
-.hero__title {
-  margin: 0;
-  font-family: "Iowan Old Style", "Palatino Linotype", serif;
-  font-size: clamp(2.25rem, 5vw, 4rem);
-  line-height: 0.96;
-}
-
-.hero__copy {
-  width: min(640px, 100%);
-  margin: 16px 0 0;
-  font-size: 1rem;
-  line-height: 1.7;
-  color: #4b5563;
-}
-
 .editor {
-  border: 1px solid rgba(180, 83, 9, 0.18);
+  border: 1px solid var(--editor-frame-border);
   border-radius: 24px;
   overflow: hidden;
-  background: rgba(255, 252, 246, 0.9);
-  box-shadow:
-    0 18px 40px rgba(120, 53, 15, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  background: var(--editor-frame-bg);
+  box-shadow: var(--editor-frame-shadow);
   backdrop-filter: blur(10px);
 }
 
@@ -72,8 +112,12 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px;
-  border-bottom: 1px solid rgba(180, 83, 9, 0.14);
-  background: linear-gradient(180deg, rgba(255, 250, 240, 0.92), #fffaf0);
+  border-bottom: 1px solid var(--editor-meta-border);
+  background: var(--editor-meta-bg);
+}
+
+.editor__details {
+  min-width: min(100%, 340px);
 }
 
 .editor__label {
@@ -81,38 +125,181 @@ body {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #92400e;
+  color: var(--editor-label);
 }
 
 .editor__hint {
   margin: 0;
-  color: #6b7280;
+  color: var(--editor-muted);
   font-size: 0.92rem;
 }
 
+.editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--toolbar-border);
+  background: var(--toolbar-bg);
+}
+
+.editor__toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.editor__toolbar-group--file {
+  justify-content: flex-end;
+}
+
+.editor__tool {
+  border: 1px solid var(--tool-border);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--tool-bg);
+  color: var(--tool-text);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.editor__tool:hover {
+  border-color: color-mix(in srgb, var(--tool-border) 60%, white);
+  transform: translateY(-1px);
+}
+
+.editor__tool--active {
+  border-color: var(--tool-active-border);
+  background: var(--tool-active-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.editor__tool--file {
+  background: var(--tool-file-bg);
+  color: var(--tool-file-text);
+}
+
 .editor__mount {
+  flex: 1 1 auto;
   padding: 24px;
+}
+
+.editor__workspace {
+  display: flex;
+  align-items: stretch;
+  min-height: 480px;
+}
+
+.editor__sidebar {
+  width: min(280px, 34%);
+  padding: 20px 18px 24px;
+  border-right: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+}
+
+.editor__sidebar-header {
+  margin-bottom: 18px;
+}
+
+.editor__sidebar-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sidebar-label);
+}
+
+.editor__sidebar-copy,
+.editor__outline-empty {
+  margin: 0;
+  color: var(--editor-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.editor__outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.editor__outline-item + .editor__outline-item {
+  margin-top: 6px;
+}
+
+.editor__outline-button {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  padding-left: calc(12px + var(--outline-depth, 0) * 16px);
+  background: transparent;
+  color: var(--outline-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.editor__outline-button:hover {
+  background: var(--outline-hover-bg);
+  color: var(--tool-text);
+  transform: translateX(2px);
+}
+
+.editor__outline-button--active {
+  background: var(--outline-active-bg);
+  color: var(--tool-text);
+  box-shadow: inset 0 0 0 1px var(--outline-active-ring);
+}
+
+.editor__outline-level {
+  flex: 0 0 auto;
+  min-width: 2.2rem;
+  color: var(--outline-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .editor__surface {
   min-height: 420px;
   padding: clamp(24px, 4vw, 48px);
   border-radius: 18px;
-  border: 1px solid rgba(120, 53, 15, 0.1);
-  background: #fffdf8;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-bg);
   outline: none;
   box-shadow: inset 0 1px 2px rgba(17, 24, 39, 0.05);
   font-family: "Iowan Old Style", "Palatino Linotype", serif;
   font-size: 1.05rem;
   line-height: 1.75;
-  color: #1f2937;
+  color: var(--surface-text);
 }
 
 .editor__surface:focus {
-  border-color: rgba(217, 119, 6, 0.45);
+  border-color: var(--surface-focus-border);
   box-shadow:
     inset 0 1px 2px rgba(17, 24, 39, 0.05),
-    0 0 0 4px rgba(251, 191, 36, 0.16);
+    0 0 0 4px var(--surface-focus-ring);
 }
 
 .editor__surface > *:first-child {
@@ -158,8 +345,8 @@ body {
   padding: 16px 18px;
   border-radius: 14px;
   overflow-x: auto;
-  background: #1f2937;
-  color: #f9fafb;
+  background: var(--code-bg);
+  color: var(--code-text);
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.95rem;
   line-height: 1.6;
@@ -170,13 +357,32 @@ body {
 }
 
 @media (max-width: 720px) {
-  .app-shell {
-    width: min(100% - 20px, 1040px);
-    padding-top: 28px;
-  }
-
   .editor__mount {
     padding: 14px;
+  }
+
+  .editor__workspace {
+    flex-direction: column;
+  }
+
+  .editor__sidebar {
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .editor__toolbar {
+    padding: 12px 14px;
+  }
+
+  .editor__toolbar-group,
+  .editor__toolbar-group--file {
+    width: 100%;
+  }
+
+  .editor__tool {
+    flex: 1 1 140px;
+    justify-content: center;
   }
 
   .editor__surface {
