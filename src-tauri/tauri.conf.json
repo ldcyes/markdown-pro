@@ -1,0 +1,68 @@
+{
+  "build": {
+    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:5173"
+  },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "Copyright © 2026",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "identifier": "com.markdownpro.app",
+    "longDescription": "A Typora-style WYSIWYG Markdown editor with LaTeX and Mermaid support",
+    "shortDescription": "Markdown Pro Editor",
+    "targets": ["dmg", "app", "updater"],
+    "iOS": {
+      "minimumSystemVersion": "14.0",
+      "developmentTeam": "YOUR_TEAM_ID"
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": "entitlements.plist",
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": "",
+      "signingIdentity": null
+    },
+    "Windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "Android": {
+      "minSdkVersion": 24
+    }
+  },
+  "productName": "Markdown Pro",
+  "version": "0.1.0",
+  "identifier": "com.markdownpro.app",
+  "plugins": {},
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "Markdown Pro",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": false
+      }
+    ]
+  }
+}

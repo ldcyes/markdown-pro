@@ -1,9 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  addColumnAfter,
+  addRowAfter,
+  deleteColumn,
+  deleteRow,
+} from "prosemirror-tables";
 import { TextSelection } from "prosemirror-state";
 import { EditorState } from "prosemirror-state";
 import { editorSchema } from "./schema.js";
-import { getActiveToolbarState } from "./toolbarState.js";
+import { getActiveToolbarState, insertTable } from "./toolbarState.js";
+
+function applyCommand(
+  state: EditorState,
+  command: (
+    state: EditorState,
+    dispatch?: (transaction: EditorState["tr"]) => void,
+  ) => boolean,
+) {
+  let nextState = state;
+
+  const handled = command(state, (transaction) => {
+    nextState = state.apply(transaction);
+  });
+
+  assert.equal(handled, true);
+  return nextState;
+}
 
 test("getActiveToolbarState detects active bold and italic marks", () => {
   const doc = editorSchema.nodeFromJSON({
@@ -109,4 +132,36 @@ test("getActiveToolbarState reports list and code block context", () => {
 
   assert.equal(getActiveToolbarState(listState).bulletList, true);
   assert.equal(getActiveToolbarState(codeState).codeBlock, true);
+});
+
+test("insertTable creates a 3x3 table and table commands update it", () => {
+  const doc = editorSchema.nodeFromJSON({
+    type: "doc",
+    content: [{ type: "paragraph", content: [] }],
+  });
+
+  let state = EditorState.create({
+    schema: editorSchema,
+    doc,
+    selection: TextSelection.create(doc, 1),
+  });
+
+  state = applyCommand(state, insertTable);
+
+  assert.equal(getActiveToolbarState(state).table, true);
+  assert.equal(state.doc.firstChild?.type.name, "table");
+  assert.equal(state.doc.firstChild?.childCount, 3);
+  assert.equal(state.doc.firstChild?.firstChild?.childCount, 3);
+
+  state = applyCommand(state, addRowAfter);
+  state = applyCommand(state, addColumnAfter);
+
+  assert.equal(state.doc.firstChild?.childCount, 4);
+  assert.equal(state.doc.firstChild?.firstChild?.childCount, 4);
+
+  state = applyCommand(state, deleteRow);
+  state = applyCommand(state, deleteColumn);
+
+  assert.equal(state.doc.firstChild?.childCount, 3);
+  assert.equal(state.doc.firstChild?.firstChild?.childCount, 3);
 });

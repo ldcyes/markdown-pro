@@ -6,18 +6,24 @@ import {
 } from "react";
 import {
   Bold,
+  Columns3,
   Code2,
   FolderOpen,
   Heading1,
   Heading2,
   Heading3,
+  Image as ImageIcon,
   Italic,
   List,
+  Rows3,
   Save,
+  Table2,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import {
   baseKeymap,
+  chainCommands,
   setBlockType,
   toggleMark,
 } from "prosemirror-commands";
@@ -31,6 +37,16 @@ import {
 } from "prosemirror-schema-list";
 import { EditorState } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
+import {
+  addColumnAfter,
+  addColumnBefore,
+  addRowAfter,
+  addRowBefore,
+  deleteColumn,
+  deleteRow,
+  goToNextCell,
+  tableEditing,
+} from "prosemirror-tables";
 import { EditorView } from "prosemirror-view";
 import {
   downloadMarkdownFile,
@@ -53,7 +69,13 @@ import {
   type OutlineItem,
 } from "./outline.js";
 import { editorSchema } from "./schema";
-import { getActiveToolbarState, isNodeActive } from "./toolbarState.js";
+import {
+  getActiveToolbarState,
+  insertTable,
+  isNodeActive,
+} from "./toolbarState.js";
+import { handleImageDrop, handleImagePaste, insertImage } from "./imageUtils.js";
+import { ImageUpload } from "./ImageUpload.js";
 
 type Command = (
   state: EditorState,
@@ -84,9 +106,10 @@ function createEditorState(markdownSource: string) {
         "Shift-Ctrl-9": wrapInList(ordered_list),
         "Shift-Ctrl-\\": setBlockType(code_block),
         Enter: splitListItem(list_item),
-        Tab: sinkListItem(list_item),
-        "Shift-Tab": liftListItem(list_item),
+        Tab: chainCommands(goToNextCell(1), sinkListItem(list_item)),
+        "Shift-Tab": chainCommands(goToNextCell(-1), liftListItem(list_item)),
       }),
+      tableEditing(),
       keymap(baseKeymap),
     ],
   });
@@ -137,6 +160,19 @@ export function Editor() {
   );
   const [activeOutlineId, setActiveOutlineId] = useState<string | null>(
     initialOutlineState.activeId,
+  );
+  const [showImageUpload, setShowImageUpload] = useState(false);
+
+  const handleImageInsert = useEffectEvent(
+    (src: string, alt?: string, width?: number, height?: number) => {
+      const view = viewRef.current;
+      if (!view) {
+        return;
+      }
+
+      insertImage(view, src, alt, width, height);
+      setShowImageUpload(false);
+    },
   );
 
   const syncSnapshot = useEffectEvent(
@@ -256,6 +292,14 @@ export function Editor() {
 
         syncToolbarState(nextState);
       },
+      handleDOMEvents: {
+        paste: (view, event) => {
+          return handleImagePaste(view, event);
+        },
+        drop: (view, event) => {
+          return handleImageDrop(view, event);
+        },
+      },
     });
     viewRef.current = view;
 
@@ -349,6 +393,13 @@ export function Editor() {
       label: "Code",
       onClick: () => runEditorCommand(setBlockType(code_block)),
     },
+    {
+      active: false,
+      icon: ImageIcon,
+      id: "insert-image",
+      label: "Image",
+      onClick: () => setShowImageUpload(true),
+    },
   ];
 
   const fileButtons: Array<{
@@ -370,6 +421,62 @@ export function Editor() {
       id: "save-file",
       label: "Save",
       onClick: handleSaveFile,
+    },
+  ];
+  const tableButtons: Array<{
+    disabled?: boolean;
+    icon: LucideIcon;
+    id: string;
+    label: string;
+    onClick: () => void;
+  }> = [
+    {
+      icon: Table2,
+      id: "insert-table",
+      label: "Table",
+      onClick: () => runEditorCommand(insertTable),
+    },
+    {
+      disabled: !activeToolbarState.table,
+      icon: Rows3,
+      id: "add-row-before",
+      label: "Row Before",
+      onClick: () => runEditorCommand(addRowBefore),
+    },
+    {
+      disabled: !activeToolbarState.table,
+      icon: Rows3,
+      id: "add-row-after",
+      label: "Row After",
+      onClick: () => runEditorCommand(addRowAfter),
+    },
+    {
+      disabled: !activeToolbarState.table,
+      icon: Columns3,
+      id: "add-column-before",
+      label: "Col Before",
+      onClick: () => runEditorCommand(addColumnBefore),
+    },
+    {
+      disabled: !activeToolbarState.table,
+      icon: Columns3,
+      id: "add-column-after",
+      label: "Col After",
+      onClick: () => runEditorCommand(addColumnAfter),
+    },
+    {
+      disabled: !activeToolbarState.table,
+      icon: Trash2,
+      id: "delete-row",
+      label: "Delete Row",
+      onClick: () => runEditorCommand(deleteRow),
+    },
+    {
+      disabled: !activeToolbarState.table,
+      icon: Trash2,
+      id: "delete-column",
+      label: "Delete Col",
+      onClick: () => runEditorCommand(deleteColumn),
     },
   ];
 
@@ -405,6 +512,26 @@ export function Editor() {
             );
           })}
         </div>
+        <div className="editor__toolbar-group">
+          {tableButtons.map((button) => {
+            const Icon = button.icon;
+
+            return (
+              <button
+                key={button.id}
+                type="button"
+                className="editor__tool"
+                aria-label={button.label}
+                aria-disabled={button.disabled}
+                disabled={button.disabled}
+                onClick={button.onClick}
+              >
+                <Icon size={16} strokeWidth={2.1} />
+                <span>{button.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="editor__toolbar-group editor__toolbar-group--file">
           {fileButtons.map((button) => {
             const Icon = button.icon;
@@ -432,6 +559,12 @@ export function Editor() {
         />
         <div ref={mountRef} className="editor__mount" />
       </div>
+      {showImageUpload && (
+        <ImageUpload
+          onInsert={handleImageInsert}
+          onClose={() => setShowImageUpload(false)}
+        />
+      )}
     </section>
   );
 }

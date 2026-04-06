@@ -14,6 +14,9 @@ test("editorSchema accepts valid table nodes", () => {
             content: [
               {
                 type: "table_header",
+                attrs: {
+                  align: "left",
+                },
                 content: [
                   {
                     type: "paragraph",
@@ -46,6 +49,9 @@ test("editorSchema accepts valid table nodes", () => {
               },
               {
                 type: "table_cell",
+                attrs: {
+                  align: "center",
+                },
                 content: [
                   {
                     type: "paragraph",
@@ -72,6 +78,7 @@ test("editorSchema accepts valid table nodes", () => {
               {
                 type: "table_header",
                 attrs: {
+                  align: "left",
                   colspan: 1,
                   rowspan: 1,
                   colwidth: null,
@@ -86,6 +93,7 @@ test("editorSchema accepts valid table nodes", () => {
               {
                 type: "table_header",
                 attrs: {
+                  align: null,
                   colspan: 1,
                   rowspan: 1,
                   colwidth: null,
@@ -105,6 +113,7 @@ test("editorSchema accepts valid table nodes", () => {
               {
                 type: "table_cell",
                 attrs: {
+                  align: null,
                   colspan: 1,
                   rowspan: 1,
                   colwidth: null,
@@ -119,6 +128,7 @@ test("editorSchema accepts valid table nodes", () => {
               {
                 type: "table_cell",
                 attrs: {
+                  align: "center",
                   colspan: 1,
                   rowspan: 1,
                   colwidth: null,

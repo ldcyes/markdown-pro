@@ -10,7 +10,7 @@ interface MarkdownMark {
 
 interface MarkdownNodeJSON {
   type: string;
-  attrs?: Record<string, number | string>;
+  attrs?: Record<string, number | string | null | number[]>;
   content?: MarkdownNodeJSON[];
   marks?: MarkdownMark[];
   text?: string;
@@ -28,14 +28,31 @@ const markdown = new MarkdownIt({
   typographer: true,
 });
 
+// Preprocess LaTeX math syntax
+function preprocessMath(content: string): string {
+  // Replace $$...$$ with fenced code block for easier parsing
+  let result = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+    return `\`\`\`math\n${formula.trim()}\n\`\`\``;
+  });
+
+  // Replace $...$ with special markers (must be done after $$)
+  result = result.replace(/\$([^\$\n]+?)\$/g, (match, formula) => {
+    return `MATHINLINE${formula.trim()}MATHINLINE`;
+  });
+
+  return result;
+}
+
 const ROOT_NODE: MarkdownNodeJSON = {
   type: "doc",
   content: [],
 };
 
+type TableAlignment = "left" | "center" | "right";
+
 function createContainerNode(
   type: string,
-  attrs?: Record<string, number | string>,
+  attrs?: Record<string, number | string | null | number[]>,
 ): MarkdownNodeJSON {
   return {
     type,
@@ -81,6 +98,58 @@ function popMark(stack: MarkdownMark[], type: string) {
   }
 }
 
+function parseTableAlignment(token: MarkdownToken): TableAlignment | null {
+  const style = token.attrGet("style");
+
+  if (!style) {
+    return null;
+  }
+
+  if (style.includes("text-align:left")) {
+    return "left";
+  }
+
+  if (style.includes("text-align:center")) {
+    return "center";
+  }
+
+  if (style.includes("text-align:right")) {
+    return "right";
+  }
+
+  return null;
+}
+
+function appendInlineContent(
+  target: MarkdownNodeJSON,
+  tokens: MarkdownToken[],
+) {
+  const inlineNodes = parseInlineTokens(tokens);
+
+  if (target.type === "table_cell" || target.type === "table_header") {
+    const paragraph = createContainerNode("paragraph");
+
+    for (const node of inlineNodes) {
+      appendNode(paragraph, node);
+    }
+
+    appendNode(target, paragraph);
+    return;
+  }
+
+  for (const node of inlineNodes) {
+    appendNode(target, node);
+  }
+}
+
+function ensureTableCellHasParagraph(cell: MarkdownNodeJSON) {
+  if ((cell.content?.length ?? 0) > 0) {
+    return;
+  }
+
+  appendNode(cell, createContainerNode("paragraph"));
+}
+
 function parseInlineTokens(tokens: MarkdownToken[]): MarkdownNodeJSON[] {
   const nodes: MarkdownNodeJSON[] = [];
   const marks: MarkdownMark[] = [];
@@ -88,6 +157,29 @@ function parseInlineTokens(tokens: MarkdownToken[]): MarkdownNodeJSON[] {
   for (const token of tokens) {
     switch (token.type) {
       case "text": {
+        // Handle LaTeX inline math
+        if (token.content.includes("MATHINLINE")) {
+          const parts = token.content.split(/MATHINLINE(.*?)MATHINLINE/g);
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (!part) continue;
+
+            // Odd indices are between markers (math content)
+            if (i % 2 === 1) {
+              nodes.push({
+                type: "math_inline",
+                attrs: { content: part },
+              });
+            } else {
+              const textNode = createTextNode(part, marks);
+              if (textNode) {
+                nodes.push(textNode);
+              }
+            }
+          }
+          break;
+        }
+
         const textNode = createTextNode(token.content, marks);
         if (textNode) {
           nodes.push(textNode);
@@ -121,10 +213,17 @@ function parseInlineTokens(tokens: MarkdownToken[]): MarkdownNodeJSON[] {
         nodes.push({ type: "hard_break" });
         break;
       case "image": {
-        const textNode = createTextNode(token.content, marks);
-        if (textNode) {
-          nodes.push(textNode);
-        }
+        const imageNode: MarkdownNodeJSON = {
+          type: "image",
+          attrs: {
+            src: token.attrGet("src") || "",
+            alt: token.content || "",
+            title: token.attrGet("title") || null,
+            width: null,
+            height: null,
+          },
+        };
+        nodes.push(imageNode);
         break;
       }
       default: {
@@ -153,6 +252,9 @@ function normalizeDocument(root: MarkdownNodeJSON): MarkdownNodeJSON {
 }
 
 function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
+  // Preprocess LaTeX math syntax
+  const preprocessed = preprocessMath(source);
+
   const stack: MarkdownNodeJSON[] = [
     {
       ...ROOT_NODE,
@@ -160,7 +262,7 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
     },
   ];
 
-  for (const token of markdown.parse(source, {})) {
+  for (const token of markdown.parse(preprocessed, {})) {
     const current = stack[stack.length - 1];
 
     switch (token.type) {
@@ -184,6 +286,26 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
           }),
         );
         break;
+      case "table_open":
+        stack.push(createContainerNode("table"));
+        break;
+      case "tr_open":
+        stack.push(createContainerNode("table_row"));
+        break;
+      case "th_open":
+        stack.push(
+          createContainerNode("table_header", {
+            align: parseTableAlignment(token),
+          }),
+        );
+        break;
+      case "td_open":
+        stack.push(
+          createContainerNode("table_cell", {
+            align: parseTableAlignment(token),
+          }),
+        );
+        break;
       case "list_item_open":
         stack.push(createContainerNode("list_item"));
         break;
@@ -191,6 +313,8 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
       case "paragraph_close":
       case "bullet_list_close":
       case "ordered_list_close":
+      case "table_close":
+      case "tr_close":
       case "list_item_close": {
         const node = stack.pop();
         if (node) {
@@ -198,12 +322,45 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
         }
         break;
       }
-      case "inline":
-        for (const child of parseInlineTokens(token.children ?? [])) {
-          appendNode(current, child);
+      case "th_close":
+      case "td_close": {
+        const node = stack.pop();
+        if (node) {
+          ensureTableCellHasParagraph(node);
+          appendNode(stack[stack.length - 1], node);
         }
         break;
-      case "fence":
+      }
+      case "inline":
+        appendInlineContent(current, token.children ?? []);
+        break;
+      case "fence": {
+        // Check for mermaid diagram
+        if (token.info === "mermaid") {
+          appendNode(current, {
+            type: "mermaid",
+            attrs: { content: token.content || "" },
+          });
+          break;
+        }
+
+        // Check for math block
+        if (token.info === "math") {
+          appendNode(current, {
+            type: "math_block",
+            attrs: { content: token.content.trim() },
+          });
+          break;
+        }
+
+        appendNode(current, {
+          type: "code_block",
+          content: token.content
+            ? [{ type: "text", text: token.content }]
+            : [],
+        });
+        break;
+      }
       case "code_block":
         appendNode(current, {
           type: "code_block",
@@ -251,10 +408,105 @@ function serializeInline(node: ProseMirrorNode): string {
 
     if (child.type.name === "hard_break") {
       parts.push("\\\n");
+      return;
+    }
+
+    if (child.type.name === "image") {
+      const { src, alt, title } = child.attrs;
+      const titlePart = title ? ` "${title}"` : "";
+      parts.push(`![${alt || ""}](${src}${titlePart})`);
+      return;
+    }
+
+    if (child.type.name === "math_inline") {
+      parts.push(`$${child.attrs.content as string}$`);
     }
   });
 
   return parts.join("");
+}
+
+function escapeTableCell(text: string): string {
+  return text.trim().replace(/\|/g, "\\|");
+}
+
+function serializeTableCellBlock(node: ProseMirrorNode): string {
+  switch (node.type.name) {
+    case "paragraph":
+    case "heading":
+      return serializeInline(node);
+    case "code_block":
+      return `\`${node.textContent.trim()}\``;
+    default:
+      return node.textContent;
+  }
+}
+
+function serializeTableCell(node: ProseMirrorNode): string {
+  return escapeTableCell(
+    node.content.content
+      .map((child) => serializeTableCellBlock(child).replace(/\\\n/g, "<br>"))
+      .join("<br>"),
+  );
+}
+
+function serializeOptionalTableCell(node: ProseMirrorNode | null): string {
+  return node ? serializeTableCell(node) : "";
+}
+
+function getTableColumnAlignment(
+  rows: readonly ProseMirrorNode[],
+  columnIndex: number,
+): TableAlignment | null {
+  for (const row of rows) {
+    const cell = row.maybeChild(columnIndex);
+    const align = cell?.attrs.align;
+
+    if (align === "left" || align === "center" || align === "right") {
+      return align;
+    }
+  }
+
+  return null;
+}
+
+function serializeTable(node: ProseMirrorNode, depth: number): string {
+  const indent = "  ".repeat(depth);
+  const rows = node.content.content;
+
+  if (rows.length === 0) {
+    return "";
+  }
+
+  const columnCount = Math.max(
+    ...rows.map((row) => row.childCount),
+    0,
+  );
+  const headerRow = rows[0];
+  const alignments = Array.from({ length: columnCount }, (_, index) =>
+    getTableColumnAlignment(rows, index),
+  );
+  const separatorRow = alignments.map((align) => {
+    switch (align) {
+      case "left":
+        return ":---";
+      case "center":
+        return ":---:";
+      case "right":
+        return "---:";
+      default:
+        return "---";
+    }
+  });
+  const lines = [
+    `| ${Array.from({ length: columnCount }, (_, index) => serializeOptionalTableCell(headerRow.maybeChild(index))).join(" | ")} |`,
+    `| ${separatorRow.join(" | ")} |`,
+    ...rows.slice(1).map((row) =>
+      `| ${Array.from({ length: columnCount }, (_, index) => serializeOptionalTableCell(row.maybeChild(index))).join(" | ")} |`,
+    ),
+  ];
+
+  return lines.map((line) => `${indent}${line}`).join("\n");
 }
 
 function serializeListItem(
@@ -316,6 +568,12 @@ function serializeBlock(node: ProseMirrorNode, depth = 0): string {
       return serializeList(node, depth);
     case "code_block":
       return serializeCodeBlock(node, depth);
+    case "table":
+      return serializeTable(node, depth);
+    case "math_block":
+      return `${indent}$$${node.attrs.content as string}$$`;
+    case "mermaid":
+      return `${indent}\`\`\`mermaid\n${node.attrs.content as string}\n\`\`\``;
     default:
       return `${indent}${node.textContent}`;
   }
