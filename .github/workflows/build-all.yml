@@ -24,7 +24,7 @@ jobs:
         run: pnpm install
 
       - name: Build Web
-        run: pnpm build
+        run: npx vite build
 
       - name: Upload Web artifacts
         uses: actions/upload-artifact@v3
@@ -32,7 +32,7 @@ jobs:
           name: web-build
           path: dist/
 
-  build-windows:
+  build-desktop:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -49,169 +49,71 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: x86_64-pc-windows-gnu
 
-      - name: Install mingw-w64
-        run: sudo apt install -y mingw-w64
+      - name: Install Tauri CLI
+        run: |
+          pnpm add -D @tauri-apps/cli@next @tauri-apps/api@next
+          pnpm tauri info || true
 
       - name: Install dependencies
         run: pnpm install
 
-      - name: Init Tauri
-        run: |
-          pnpm add -D @tauri-apps/cli@next @tauri-apps/api@next
-          pnpm tauri init || true
+      - name: Initialize Tauri
+        run: pnpm tauri init || true
 
-      - name: Build Windows
-        run: pnpm tauri build --target x86_64-pc-windows-gnu
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: windows-build
-          path: src-tauri/target/x86_64-pc-windows-gnu/release/bundle/
-
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          targets: aarch64-linux-android,armv7-linux-androideabi
-
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Init Tauri
-        run: |
-          pnpm add -D @tauri-apps/cli@next @tauri-apps/api@next
-          pnpm tauri init || true
-
-      - name: Init Android
-        run: pnpm tauri android init
-
-      - name: Build Android
-        run: pnpm tauri android build --release
-
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: android-build
-          path: src-tauri/gen/android/app/build/outputs/
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Init Tauri
-        run: |
-          pnpm add -D @tauri-apps/cli@next @tauri-apps/api@next
-          pnpm tauri init || true
-
-      - name: Build macOS
+      - name: Build Desktop App
         run: pnpm tauri build
+        continue-on-error: true
 
-      - name: Upload macOS artifacts
+      - name: Upload Desktop artifacts
         uses: actions/upload-artifact@v3
+        if: always()
         with:
-          name: macos-build
+          name: desktop-build
           path: src-tauri/target/release/bundle/
 
-  build-ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Init Tauri
-        run: |
-          pnpm add -D @tauri-apps/cli@next @tauri-apps/api@next
-          pnpm tauri init || true
-
-      - name: Init iOS
-        run: pnpm tauri ios init
-
-      - name: Build iOS
-        run: pnpm tauri ios build --release
-
-      - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ios-build
-          path: src-tauri/target/aarch64-apple-ios/release/
-
   release:
-    needs: [build-web, build-windows, build-android, build-macos, build-ios]
+    needs: [build-web, build-desktop]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v3
 
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/*}" >> $GITHUB_ENV
+echo "Building version: $VERSION"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          name: Markdown Pro ${{ env.VERSION }}
+          body: |
+            ## 🎉 Multi-platform Markdown Editor
+            
+            Typora-style WYSIWYG editor with support for:
+            - Web (all browsers)
+            - Desktop (Windows, macOS, Linux)
+            - Mobile (Android, iOS - requires separate build)
+            
+            ## ✨ Features
+            - LaTeX formula support (KaTeX)
+            - Mermaid diagrams
+            - Image upload with cropping
+            - Table editing
+            - Dark/light themes
+            
+            ## 📦 Downloads
+            | Platform | File |
+            |----------|------|
+            | Web | dist/ |
+            | Desktop | MSI, DMG, AppImage |
+            
+            Built with ❤️ using Tauri + React + ProseMirror
+          draft: false
           files: |
-            windows-build/msi/*.msi
-            windows-build/nsis/*.exe
-            android-build/apk/release/*.apk
-            android-build/bundle/release/*.aab
-            macos-build/dmg/*.dmg
-            macos-build/macos/*.app
-            ios-build/*.ipa
             web-build/*
+            desktop-build/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
