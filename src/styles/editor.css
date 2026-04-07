@@ -99,7 +99,7 @@ body {
 .editor {
   border: 1px solid var(--editor-frame-border);
   border-radius: 24px;
-  overflow: hidden;
+  overflow: clip;
   background: var(--editor-frame-bg);
   box-shadow: var(--editor-frame-shadow);
   backdrop-filter: blur(10px);
@@ -192,6 +192,9 @@ body {
 .editor__mount {
   flex: 1 1 auto;
   padding: 24px;
+  position: relative;
+  pointer-events: auto;
+  overflow-y: auto;
 }
 
 .editor__workspace {
@@ -293,6 +296,11 @@ body {
   font-size: 1.05rem;
   line-height: 1.75;
   color: var(--surface-text);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 .editor__surface:focus {
@@ -389,4 +397,28 @@ body {
     min-height: 320px;
     padding: 22px 18px;
   }
+}
+
+/* Ensure ProseMirror editor is fully interactive */
+.ProseMirror {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  pointer-events: auto;
+}
+
+/* Ensure content inside editor is selectable */
+.ProseMirror-content {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Fix any Tailwind preflight interference */
+.ProseMirror[contenteditable="true"] {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  cursor: text !important;
 }

@@ -48,6 +48,8 @@ import {
   tableEditing,
 } from "prosemirror-tables";
 import { EditorView } from "prosemirror-view";
+import "prosemirror-view/style/prosemirror.css";
+import "prosemirror-tables/style/tables.css";
 import {
   downloadMarkdownFile,
   formatFileSize,
@@ -278,8 +280,11 @@ export function Editor() {
 
     const view = new EditorView(mountRef.current, {
       state: createEditorState(initialDraft.content),
+      editable: () => true,
       attributes: {
         class: "ProseMirror editor__surface",
+        role: "textbox",
+        "aria-multiline": "true",
       },
       dispatchTransaction(transaction) {
         const nextState = view.state.apply(transaction);
@@ -307,7 +312,7 @@ export function Editor() {
       viewRef.current?.destroy();
       viewRef.current = null;
     };
-  }, [initialDraft.content, syncSnapshot, syncToolbarState]);
+  }, [initialDraft.content]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
