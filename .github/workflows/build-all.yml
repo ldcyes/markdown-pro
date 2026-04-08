@@ -152,9 +152,9 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            windows-installer/*
-            macos-dmg/*
-            linux-packages/*
+            windows-installer/**
+            macos-dmg/**
+            linux-packages/**
             web-build/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
