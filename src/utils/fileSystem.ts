@@ -221,11 +221,47 @@ export function downloadMarkdownFile(
 export async function exportToPdf(
   editorElement: HTMLElement,
   fileName = "untitled.md",
+  watermark?: string,
 ) {
   if (typeof document === "undefined") return;
 
   const html2pdf = (await import("html2pdf.js")).default;
   const baseName = fileName.replace(/\.(md|markdown)$/i, "");
+
+  // If watermark, add a watermark overlay to a cloned element
+  let element = editorElement;
+  if (watermark) {
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    const clone = editorElement.cloneNode(true) as HTMLElement;
+    wrapper.appendChild(clone);
+
+    // Watermark overlay
+    const wm = document.createElement("div");
+    wm.textContent = watermark;
+    wm.style.cssText = `
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 60px; font-weight: bold; color: rgba(180,180,180,0.25);
+      transform: rotate(-30deg); pointer-events: none;
+      white-space: nowrap; z-index: 9999;
+    `;
+    wrapper.appendChild(wm);
+    document.body.appendChild(wrapper);
+    element = wrapper;
+
+    const opt = {
+      margin: [10, 10, 10, 10] as [number, number, number, number],
+      filename: `${baseName}.pdf`,
+      image: { type: "jpeg" as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
+    };
+
+    await html2pdf().set(opt).from(element).save();
+    document.body.removeChild(wrapper);
+    return;
+  }
 
   const opt = {
     margin: [10, 10, 10, 10] as [number, number, number, number],
@@ -235,7 +271,7 @@ export async function exportToPdf(
     jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
   };
 
-  html2pdf().set(opt).from(editorElement).save();
+  html2pdf().set(opt).from(element).save();
 }
 
 export async function exportToDocx(

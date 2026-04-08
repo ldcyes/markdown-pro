@@ -24,6 +24,7 @@ import {
   List,
   ListOrdered,
   MoonStar,
+  Printer,
   Redo2,
   Rows3,
   Save,
@@ -103,7 +104,7 @@ import {
   isNodeActive,
 } from "./toolbarState.js";
 import { handleImageDrop, handleImagePaste, insertImage } from "./imageUtils.js";
-import { ImageUpload } from "./ImageUpload.js";
+import { ImageResizeView } from "./ImageResizeView.js";
 
 // Register highlight.js languages
 hljs.registerLanguage("python", python);
@@ -315,7 +316,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const [activeOutlineId, setActiveOutlineId] = useState<string | null>(() =>
     findActiveOutlineId(outlineItems, 0),
   );
-  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [showImageCrop, setShowImageCrop] = useState<{ src: string; pos: number } | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const resizerRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
@@ -330,14 +331,23 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     [activeTabId],
   );
 
-  const handleImageInsert = useEffectEvent(
-    (src: string, alt?: string, width?: number, height?: number) => {
-      const view = viewRef.current;
-      if (!view) return;
-      insertImage(view, src, alt, width, height);
-      setShowImageUpload(false);
-    },
-  );
+  const handleInsertImageFromPicker = useEffectEvent(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const view = viewRef.current;
+        if (!view) return;
+        insertImage(view, reader.result as string, file.name);
+      };
+      reader.readAsDataURL(file);
+    }, { once: true });
+    input.click();
+  });
 
   const syncSnapshot = useEffectEvent(
     (nextState: EditorState, options?: { fileName?: string; statusMessage?: string }) => {
@@ -457,8 +467,13 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const handleExportPdf = useEffectEvent(() => {
     const editorEl = mountRef.current?.querySelector(".ProseMirror") as HTMLElement | null;
     if (!editorEl) return;
-    exportToPdf(editorEl, activeTab.fileName);
+    const watermark = window.prompt("PDF watermark (leave blank for none):", "") ?? "";
+    exportToPdf(editorEl, activeTab.fileName, watermark || undefined);
     setStatusMessage("Exported as PDF");
+  });
+
+  const handlePrint = useEffectEvent(() => {
+    window.print();
   });
 
   const handleExportDocx = useEffectEvent(() => {
@@ -546,6 +561,9 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
       state: createEditorState(initContent),
       editable: () => true,
       attributes: { class: "ProseMirror editor__surface", role: "textbox", "aria-multiline": "true" },
+      nodeViews: {
+        image(node, view, getPos) { return new ImageResizeView(node, view, getPos); },
+      },
       dispatchTransaction(transaction) {
         const nextState = view.state.apply(transaction);
         view.updateState(nextState);
@@ -614,7 +632,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     { active: activeToolbarState.bulletList, icon: List, id: "bullet-list", label: "Bullets", onClick: () => { void toggleBulletListCommand(); } },
     { active: activeToolbarState.orderedList, icon: ListOrdered, id: "ordered-list", label: "Numbers", onClick: () => { void toggleOrderedListCommand(); } },
     { active: activeToolbarState.codeBlock, icon: Code2, id: "code-block", label: "Code", onClick: () => runEditorCommand(setBlockType(code_block)) },
-    { icon: ImageIcon, id: "insert-image", label: "Image", onClick: () => setShowImageUpload(true) },
+    { icon: ImageIcon, id: "insert-image", label: "Image", onClick: handleInsertImageFromPicker },
     { icon: Table2, id: "insert-table", label: "Table", onClick: () => runEditorCommand(insertTable) },
   ];
 
@@ -630,6 +648,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const exportGroup: ToolButton[] = [
     { icon: FileDown, id: "export-pdf", label: "PDF", onClick: handleExportPdf },
     { icon: FileText, id: "export-docx", label: "Word", onClick: handleExportDocx },
+    { icon: Printer, id: "print", label: "Print", onClick: handlePrint },
   ];
 
   function renderRibbonGroup(label: string, buttons: ToolButton[]) {
@@ -756,9 +775,6 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
         ))}
       </div>
 
-      {showImageUpload && (
-        <ImageUpload onInsert={handleImageInsert} onClose={() => setShowImageUpload(false)} />
-      )}
     </section>
   );
 }

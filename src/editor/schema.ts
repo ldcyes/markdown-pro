@@ -41,10 +41,11 @@ const imageNode = {
     ],
     toDOM: (node: { attrs: Record<string, string | number | null> }) => {
       const { src, alt, title, width, height } = node.attrs;
-      // Default to 100% width if no explicit size set
-      const w = width || "100%";
-      const h = height || "auto";
-      const style = `max-width: 100%; width: ${w}; height: ${h};`;
+      const style = [
+        "max-width: 100%",
+        width ? `width: ${typeof width === "number" ? `${width}px` : width}` : "",
+        height ? `height: ${typeof height === "number" ? `${height}px` : height}` : "",
+      ].filter(Boolean).join("; ");
 
       return ["img", { src: (src as string) || "", alt: (alt as string) || "", title: (title as string) || "", style }] as const;
     },
