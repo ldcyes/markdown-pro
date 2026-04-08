@@ -13,6 +13,7 @@ type Command = (
 export interface ActiveToolbarState {
   bold: boolean;
   bulletList: boolean;
+  orderedList: boolean;
   codeBlock: boolean;
   headingLevel: number | null;
   italic: boolean;
@@ -49,7 +50,7 @@ export function isMarkActive(
 
 export function isNodeActive(
   state: EditorState,
-  nodeName: "bullet_list" | "code_block" | "heading" | "table",
+  nodeName: "bullet_list" | "ordered_list" | "code_block" | "heading" | "table",
   expectedAttrs?: Record<string, unknown>,
 ): boolean {
   const nodeType = editorSchema.nodes[nodeName];
@@ -166,6 +167,7 @@ export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
   return {
     bold: isMarkActive(state, "strong"),
     bulletList: isNodeActive(state, "bullet_list"),
+    orderedList: isNodeActive(state, "ordered_list"),
     codeBlock: isNodeActive(state, "code_block"),
     headingLevel,
     italic: isMarkActive(state, "em"),

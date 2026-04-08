@@ -105,26 +105,94 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   color: inherit;
   background: transparent;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ─── Editor frame ─── */
 .editor {
-  border: 1px solid var(--editor-frame-border);
-  border-radius: 12px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   background: var(--editor-frame-bg);
-  box-shadow: var(--editor-frame-shadow);
-  backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
+  height: 100vh;
+}
+
+/* ─── Menu bar (top) ─── */
+.editor__menubar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: var(--editor-meta-bg);
+  border-bottom: 1px solid var(--editor-meta-border);
+  flex-shrink: 0;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.editor__menubar-left,
+.editor__menubar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.editor__menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tool-text);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 100ms, border-color 100ms;
+}
+
+.editor__menu-btn:hover {
+  border-color: var(--tool-border);
+  background: var(--tool-bg);
+}
+
+.editor__menubar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--editor-meta-border);
+  flex-shrink: 0;
+}
+
+.editor__menubar-filename {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--editor-label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor__menubar-hint {
+  font-size: 0.72rem;
+  color: var(--editor-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ─── Tab bar ─── */
@@ -250,43 +318,7 @@ body {
   margin: 0;
 }
 
-/* ─── Meta bar (title bar) ─── */
-.editor__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--editor-meta-border);
-  background: var(--editor-meta-bg);
-  flex-shrink: 0;
-}
-
-.editor__details {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
-
-.editor__label {
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--editor-label);
-  white-space: nowrap;
-}
-
-.editor__hint {
-  margin: 0;
-  color: var(--editor-muted);
-  font-size: 0.82rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* (Meta bar removed - replaced by menubar) */
 
 /* ─── Ribbon Toolbar (Word-style) ─── */
 .editor__toolbar {
@@ -578,6 +610,34 @@ body {
   padding-left: 1.5rem;
 }
 
+.editor__surface ul {
+  list-style-type: disc;
+}
+
+.editor__surface ul ul {
+  list-style-type: circle;
+}
+
+.editor__surface ul ul ul {
+  list-style-type: square;
+}
+
+.editor__surface ol {
+  list-style-type: decimal;
+}
+
+.editor__surface ol ol {
+  list-style-type: lower-alpha;
+}
+
+.editor__surface ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.editor__surface li {
+  display: list-item;
+}
+
 .editor__surface li + li {
   margin-top: 0.35rem;
 }
@@ -722,8 +782,8 @@ body {
 /* ─── Responsive ─── */
 @media (max-width: 720px) {
   .editor {
-    height: calc(100vh - 40px);
-    border-radius: 8px;
+    height: 100vh;
+    border-radius: 0;
   }
 
   .editor__mount {

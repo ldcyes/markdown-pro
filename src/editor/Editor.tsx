@@ -22,11 +22,16 @@ import {
   Image as ImageIcon,
   Italic,
   List,
+  ListOrdered,
+  MoonStar,
+  Redo2,
   Rows3,
   Save,
   SaveAll,
+  SunMedium,
   Table2,
   Trash2,
+  Undo2,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -268,7 +273,12 @@ function setTextAlign(align: string | null): Command {
   };
 }
 
-export function Editor() {
+interface EditorProps {
+  theme: string;
+  onThemeToggle: () => void;
+}
+
+export function Editor({ theme, onThemeToggle }: EditorProps) {
   // Initialize tabs
   const [tabs, setTabs] = useState<TabState[]>(() => {
     const draft = loadDraftFromLocalStorage();
@@ -472,6 +482,18 @@ export function Editor() {
     );
   });
 
+  const toggleOrderedListCommand = useEffectEvent(() => {
+    const { ordered_list, list_item } = editorSchema.nodes;
+    const view = viewRef.current;
+    if (!view) return;
+    runEditorCommand(
+      isNodeActive(view.state, "ordered_list") ? liftListItem(list_item) : wrapInList(ordered_list),
+    );
+  });
+
+  const handleUndo = useEffectEvent(() => runEditorCommand(undo));
+  const handleRedo = useEffectEvent(() => runEditorCommand(redo));
+
   const handleOutlineSelect = useEffectEvent((item: OutlineItem) => {
     const view = viewRef.current;
     if (!view) return;
@@ -589,7 +611,8 @@ export function Editor() {
   ];
 
   const insertGroup: ToolButton[] = [
-    { active: activeToolbarState.bulletList, icon: List, id: "bullet-list", label: "List", onClick: () => { void toggleBulletListCommand(); } },
+    { active: activeToolbarState.bulletList, icon: List, id: "bullet-list", label: "Bullets", onClick: () => { void toggleBulletListCommand(); } },
+    { active: activeToolbarState.orderedList, icon: ListOrdered, id: "ordered-list", label: "Numbers", onClick: () => { void toggleOrderedListCommand(); } },
     { active: activeToolbarState.codeBlock, icon: Code2, id: "code-block", label: "Code", onClick: () => runEditorCommand(setBlockType(code_block)) },
     { icon: ImageIcon, id: "insert-image", label: "Image", onClick: () => setShowImageUpload(true) },
     { icon: Table2, id: "insert-table", label: "Table", onClick: () => runEditorCommand(insertTable) },
@@ -641,6 +664,36 @@ export function Editor() {
 
   return (
     <section className="editor">
+      {/* Menu bar */}
+      <div className="editor__menubar">
+        <div className="editor__menubar-left">
+          <button type="button" className="editor__menu-btn" aria-label="Undo" onClick={handleUndo}>
+            <Undo2 size={14} strokeWidth={2} /><span>Undo</span>
+          </button>
+          <button type="button" className="editor__menu-btn" aria-label="Redo" onClick={handleRedo}>
+            <Redo2 size={14} strokeWidth={2} /><span>Redo</span>
+          </button>
+          <span className="editor__menubar-sep" />
+          <span className="editor__menubar-filename">{activeTab.fileName}</span>
+          <span className="editor__menubar-hint">
+            {statusMessage}
+            {` \u2022 ${formatFileSize(documentSize)}`}
+          </span>
+        </div>
+        <div className="editor__menubar-right">
+          <label className="editor__autosave-toggle">
+            <input type="checkbox" checked={autoSave} onChange={toggleAutoSave} />
+            <SaveAll size={13} strokeWidth={2} />
+            <span>Auto-save</span>
+          </label>
+          <span className="editor__menubar-sep" />
+          <button type="button" className="editor__menu-btn" aria-label="Toggle theme" onClick={onThemeToggle}>
+            {theme === "dark" ? <SunMedium size={14} strokeWidth={2} /> : <MoonStar size={14} strokeWidth={2} />}
+            <span>{theme === "dark" ? "Light" : "Dark"}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Tab bar */}
       <div className="editor__tabs">
         {tabs.map((tab) => {
@@ -662,23 +715,6 @@ export function Editor() {
         <button type="button" className="editor__tab-add" aria-label="New tab" onClick={handleNewTab}>
           <FilePlus2 size={14} strokeWidth={2} />
         </button>
-      </div>
-
-      {/* Meta bar */}
-      <div className="editor__meta">
-        <div className="editor__details">
-          <span className="editor__label">{activeTab.fileName}</span>
-          <p className="editor__hint">
-            {statusMessage}
-            {` \u2022 ${formatFileSize(documentSize)}`}
-            {activeTab.updatedAt ? ` \u2022 ${formatAutosaveLabel(activeTab.updatedAt)}` : ""}
-          </p>
-        </div>
-        <label className="editor__autosave-toggle">
-          <input type="checkbox" checked={autoSave} onChange={toggleAutoSave} />
-          <SaveAll size={13} strokeWidth={2} />
-          <span>Auto-save</span>
-        </label>
       </div>
 
       {/* Ribbon toolbar */}
