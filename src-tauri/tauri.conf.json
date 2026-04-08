@@ -15,14 +15,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "identifier": "com.markdownpro.app",
     "longDescription": "A Typora-style WYSIWYG Markdown editor with LaTeX and Mermaid support",
     "shortDescription": "Markdown Pro Editor",
     "targets": "all",
-    "iOS": {
-      "minimumSystemVersion": "14.0",
-      "developmentTeam": "YOUR_TEAM_ID"
-    },
     "macOS": {
       "minimumSystemVersion": "10.15",
       "entitlements": "entitlements.plist",
@@ -31,16 +26,13 @@
       "providerShortName": "",
       "signingIdentity": null
     },
-    "Windows": {
+    "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
       "wix": {
         "language": "en-US"
       }
-    },
-    "Android": {
-      "minSdkVersion": 24
     }
   },
   "productName": "Markdown Pro",
