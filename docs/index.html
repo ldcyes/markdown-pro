@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown Pro — A Beautiful WYSIWYG Markdown Editor</title>
+  <meta name="description" content="Markdown Pro is a Typora-style WYSIWYG Markdown editor with syntax highlighting, tables, LaTeX, Mermaid diagrams, and multi-platform support." />
+  <meta property="og:title" content="Markdown Pro" />
+  <meta property="og:description" content="A beautiful WYSIWYG Markdown editor for Windows, macOS, and the Web." />
+  <style>
+    :root {
+      --amber-300: #fcd34d;
+      --amber-400: #fbbf24;
+      --amber-500: #f59e0b;
+      --amber-600: #d97706;
+      --amber-700: #b45309;
+      --amber-800: #92400e;
+      --slate-50:  #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--slate-900);
+      color: var(--slate-200);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 max(1.5rem, 5vw);
+      height: 60px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(245, 158, 11, 0.12);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--amber-400);
+    }
+
+    .nav-brand svg { flex-shrink: 0; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      list-style: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--slate-300);
+    }
+
+    .nav-links a:hover { color: var(--amber-400); }
+
+    .nav-cta {
+      padding: 6px 18px;
+      border-radius: 8px;
+      background: var(--amber-500);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background 150ms;
+    }
+
+    .nav-cta:hover { background: var(--amber-600); color: #fff; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px max(1.5rem, 6vw) 80px;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(245,158,11,0.18), transparent),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(99,102,241,0.07), transparent),
+        var(--slate-900);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border: 1px solid rgba(245,158,11,0.35);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--amber-400);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1.8rem;
+      background: rgba(245,158,11,0.08);
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+      margin-bottom: 1.2rem;
+      background: linear-gradient(135deg, #fff 0%, var(--amber-300) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      max-width: 600px;
+      font-size: 1.15rem;
+      color: var(--slate-400);
+      line-height: 1.7;
+      margin-bottom: 2.8rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: center;
+      margin-bottom: 3.5rem;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--amber-500), var(--amber-600));
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 4px 24px rgba(245,158,11,0.35);
+      transition: transform 120ms, box-shadow 120ms;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(245,158,11,0.45);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      border: 1px solid rgba(245,158,11,0.3);
+      background: rgba(245,158,11,0.06);
+      color: var(--amber-300);
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 120ms, border-color 120ms;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(245,158,11,0.12);
+      border-color: rgba(245,158,11,0.5);
+    }
+
+    .hero-platforms {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.82rem;
+      color: var(--slate-500);
+    }
+
+    .platform-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--slate-400);
+      font-size: 0.78rem;
+    }
+
+    /* ── SCREENSHOT / PREVIEW ── */
+    .preview-section {
+      padding: 0 max(1.5rem, 6vw);
+      margin-top: -20px;
+    }
+
+    .preview-frame {
+      max-width: 960px;
+      margin: 0 auto;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(245,158,11,0.15);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04),
+        0 40px 80px rgba(0,0,0,0.5),
+        0 0 120px rgba(245,158,11,0.08);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .preview-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      background: rgba(30,41,59,0.8);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .titlebar-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+    .titlebar-dot:nth-child(1) { background: #ff5f57; }
+    .titlebar-dot:nth-child(2) { background: #ffbd2e; }
+    .titlebar-dot:nth-child(3) { background: #28c840; }
+
+    .titlebar-label {
+      margin-left: 8px;
+      font-size: 0.76rem;
+      color: var(--slate-500);
+      font-weight: 500;
+    }
+
+    .preview-ui {
+      padding: 0;
+      min-height: 360px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+    }
+
+    .preview-sidebar {
+      background: rgba(17,24,39,0.7);
+      border-right: 1px solid rgba(245,158,11,0.1);
+      padding: 16px 12px;
+    }
+
+    .preview-sidebar-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--amber-600);
+      margin-bottom: 12px;
+    }
+
+    .preview-outline-item {
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 0.76rem;
+      color: var(--slate-400);
+      margin-bottom: 2px;
+    }
+
+    .preview-outline-item.h1 { font-weight: 700; color: var(--amber-400); }
+    .preview-outline-item.h2 { padding-left: 14px; }
+    .preview-outline-item.h3 { padding-left: 22px; font-size: 0.7rem; }
+    .preview-outline-item.active { background: rgba(245,158,11,0.1); color: var(--slate-200); }
+
+    .preview-editor {
+      padding: 28px 32px;
+      font-family: "Georgia", serif;
+    }
+
+    .preview-h1 { font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
+    .preview-h2 { font-size: 1.15rem; font-weight: 700; color: var(--slate-200); margin: 18px 0 6px; }
+    .preview-p { color: var(--slate-400); font-size: 0.88rem; line-height: 1.75; margin-bottom: 10px; }
+    .preview-code {
+      background: rgba(15,23,42,0.9);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-family: "Courier New", monospace;
+      font-size: 0.78rem;
+      color: #abb2bf;
+      margin: 10px 0;
+    }
+    .kw { color: #c678dd; }
+    .fn { color: #61afef; }
+    .str { color: #98c379; }
+    .num { color: #d19a66; }
+
+    /* ── FEATURES ── */
+    .features-section {
+      padding: 100px max(1.5rem, 6vw);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--amber-500);
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .section-sub {
+      font-size: 1rem;
+      color: var(--slate-400);
+      max-width: 520px;
+      margin-bottom: 3rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(30,41,59,0.4);
+      transition: border-color 200ms, transform 200ms;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(245,158,11,0.2);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      background: rgba(245,158,11,0.12);
+      border: 1px solid rgba(245,158,11,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      color: var(--amber-400);
+      font-size: 1.1rem;
+    }
+
+    .feature-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 0.83rem;
+      color: var(--slate-400);
+      line-height: 1.6;
+    }
+
+    /* ── DOWNLOAD ── */
+    .download-section {
+      padding: 80px max(1.5rem, 6vw);
+      background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(245,158,11,0.07), transparent);
+    }
+
+    .download-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 2.5rem;
+    }
+
+    .download-card {
+      padding: 24px 20px;
+      border-radius: 14px;
+      border: 1px solid rgba(245,158,11,0.18);
+      background: rgba(30,41,59,0.5);
+      transition: border-color 200ms, background 200ms;
+    }
+
+    .download-card:hover {
+      border-color: rgba(245,158,11,0.4);
+      background: rgba(30,41,59,0.8);
+    }
+
+    .download-os-icon {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .download-os-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .download-os-arch {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      margin-bottom: 16px;
+    }
+
+    .download-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: 7px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 150ms;
+    }
+
+    .dl-btn-primary {
+      background: linear-gradient(135deg, var(--amber-500), var(--amber-600));
+      color: #fff;
+    }
+
+    .dl-btn-primary:hover { background: var(--amber-600); color: #fff; }
+
+    .dl-btn-outline {
+      border: 1px solid rgba(245,158,11,0.3);
+      color: var(--amber-300);
+      background: rgba(245,158,11,0.05);
+    }
+
+    .dl-btn-outline:hover { background: rgba(245,158,11,0.12); }
+
+    .dl-btn-muted {
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--slate-500);
+      background: transparent;
+      cursor: default;
+    }
+
+    .version-note {
+      margin-top: 1.5rem;
+      font-size: 0.78rem;
+      color: var(--slate-500);
+    }
+
+    .version-note a { color: var(--amber-500); }
+    .version-note a:hover { text-decoration: underline; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 40px max(1.5rem, 6vw);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--slate-500);
+    }
+
+    .footer-brand { color: var(--amber-500); font-weight: 700; }
+    footer a:hover { color: var(--slate-300); }
+
+    .footer-links { display: flex; gap: 20px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .preview-ui { grid-template-columns: 1fr; }
+      .preview-sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="22" height="22" rx="6" fill="#f59e0b" fill-opacity="0.15"/>
+      <path d="M4 7h14M4 11h10M4 15h7" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    Markdown Pro
+  </div>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#download">Download</a></li>
+    <li><a href="https://github.com/ldcyes/markdown-pro" target="_blank">GitHub</a></li>
+    <li><a href="https://github.com/ldcyes/markdown-pro" class="nav-cta" target="_blank">⭐ Star</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">✦ Open Source · MIT License</div>
+  <h1>Write Beautifully.<br>Think Clearly.</h1>
+  <p class="hero-sub">
+    A Typora-style WYSIWYG Markdown editor with multi-tab support, syntax highlighting,
+    tables, LaTeX, Mermaid diagrams, and seamless PDF/Word export.
+  </p>
+  <div class="hero-actions">
+    <a href="#download" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v9m0 0L5 7m3 3 3-3M2 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Download Free
+    </a>
+    <a href="https://github.com/ldcyes/markdown-pro" target="_blank" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.09.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.604-3.369-1.34-3.369-1.34-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+  <div class="hero-platforms">
+    <span class="platform-pill">🪟 Windows</span>
+    <span class="platform-pill">🍎 macOS</span>
+    <span class="platform-pill">🐧 Linux</span>
+    <span class="platform-pill">🌐 Web</span>
+  </div>
+</section>
+
+<!-- PREVIEW -->
+<div class="preview-section">
+  <div class="preview-frame">
+    <div class="preview-titlebar">
+      <div class="titlebar-dot"></div>
+      <div class="titlebar-dot"></div>
+      <div class="titlebar-dot"></div>
+      <span class="titlebar-label">document.md — Markdown Pro</span>
+    </div>
+    <div class="preview-ui">
+      <div class="preview-sidebar">
+        <div class="preview-sidebar-label">Outline</div>
+        <div class="preview-outline-item h1 active">Project Overview</div>
+        <div class="preview-outline-item h2">Installation</div>
+        <div class="preview-outline-item h2">Usage</div>
+        <div class="preview-outline-item h3">Basic Editing</div>
+        <div class="preview-outline-item h3">Shortcuts</div>
+        <div class="preview-outline-item h2">API Reference</div>
+      </div>
+      <div class="preview-editor">
+        <div class="preview-h1">Project Overview</div>
+        <div class="preview-p">A high-performance Markdown editor built on ProseMirror with real-time WYSIWYG rendering and multi-tab support.</div>
+        <div class="preview-h2">Quick Start</div>
+        <div class="preview-p">Install via your preferred package manager and run the following command to launch:</div>
+        <div class="preview-code">
+          <span class="kw">import</span> <span class="str">'markdown-pro'</span><br>
+          <br>
+          <span class="kw">const</span> editor = <span class="kw">new</span> <span class="fn">MarkdownPro</span>({<br>
+          &nbsp;&nbsp;theme: <span class="str">'dark'</span>,<br>
+          &nbsp;&nbsp;autoSave: <span class="kw">true</span>,<br>
+          &nbsp;&nbsp;fontSize: <span class="num">16</span><br>
+          })<br>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features-section" id="features">
+  <div class="section-eyebrow">Why Markdown Pro</div>
+  <h2 class="section-title">Everything you need to write</h2>
+  <p class="section-sub">Designed for writers, developers, and anyone who wants frictionless Markdown editing.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">✍️</div>
+      <div class="feature-title">WYSIWYG Editing</div>
+      <div class="feature-desc">See formatted output as you type — no preview toggle needed. Powered by ProseMirror.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🗂️</div>
+      <div class="feature-title">Multi-Tab Workflow</div>
+      <div class="feature-desc">Open multiple documents simultaneously. Each tab preserves its own undo/redo history.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <div class="feature-title">Syntax Highlighting</div>
+      <div class="feature-desc">Python, C/C++, TypeScript, JavaScript, Java, C#, Verilog, SystemVerilog and more.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🖼️</div>
+      <div class="feature-title">Image Tools</div>
+      <div class="feature-desc">Insert, drag-to-resize with aspect-ratio lock, and crop images directly in the editor.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Tables &amp; Diagrams</div>
+      <div class="feature-desc">Rich table editing with row/column controls. Mermaid diagrams and LaTeX math support.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📤</div>
+      <div class="feature-title">Export Anywhere</div>
+      <div class="feature-desc">Export to PDF (with watermark), Word (.docx), or print directly. Keeps full formatting.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💾</div>
+      <div class="feature-title">Auto-Save</div>
+      <div class="feature-desc">Drafts automatically saved to localStorage. Never lose your work, even without a file.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌙</div>
+      <div class="feature-title">Light &amp; Dark Themes</div>
+      <div class="feature-desc">Warm amber-toned light mode and a deep slate dark mode. System preference aware.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🖥️</div>
+      <div class="feature-title">Native Desktop App</div>
+      <div class="feature-desc">Built with Tauri for Windows, macOS, and Linux. Lightweight, fast, no Electron.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download" class="download-section">
+  <div class="download-inner">
+    <div class="section-eyebrow">Free &amp; Open Source</div>
+    <h2 class="section-title">Download Markdown Pro</h2>
+    <p class="section-sub" style="margin: 0 auto 0;">Available for all major platforms. No account required.</p>
+
+    <div class="download-grid">
+
+      <!-- Windows -->
+      <div class="download-card">
+        <span class="download-os-icon">🪟</span>
+        <div class="download-os-name">Windows</div>
+        <div class="download-os-arch">x64 · Windows 10 / 11</div>
+        <div class="download-btns">
+          <a class="dl-btn dl-btn-primary"
+             href="https://github.com/ldcyes/markdown-pro/releases/latest/download/Markdown.Pro_0.1.0_x64-setup.exe">
+            ⬇ Installer (.exe)
+          </a>
+          <a class="dl-btn dl-btn-outline"
+             href="https://github.com/ldcyes/markdown-pro/releases/latest/download/Markdown.Pro_0.1.0_x64_en-US.msi">
+            ⬇ MSI Package
+          </a>
+        </div>
+      </div>
+
+      <!-- macOS -->
+      <div class="download-card">
+        <span class="download-os-icon">🍎</span>
+        <div class="download-os-name">macOS</div>
+        <div class="download-os-arch">Apple Silicon · macOS 11+</div>
+        <div class="download-btns">
+          <a class="dl-btn dl-btn-primary"
+             href="https://github.com/ldcyes/markdown-pro/releases/latest">
+            ⬇ DMG Installer
+          </a>
+        </div>
+      </div>
+
+      <!-- Linux -->
+      <div class="download-card">
+        <span class="download-os-icon">🐧</span>
+        <div class="download-os-name">Linux</div>
+        <div class="download-os-arch">x64 · Ubuntu / Debian</div>
+        <div class="download-btns">
+          <a class="dl-btn dl-btn-primary"
+             href="https://github.com/ldcyes/markdown-pro/releases/latest">
+            ⬇ AppImage / deb
+          </a>
+        </div>
+      </div>
+
+      <!-- Web -->
+      <div class="download-card">
+        <span class="download-os-icon">🌐</span>
+        <div class="download-os-name">Web App</div>
+        <div class="download-os-arch">Browser · No install needed</div>
+        <div class="download-btns">
+          <a class="dl-btn dl-btn-outline"
+             href="https://github.com/ldcyes/markdown-pro" target="_blank">
+            Open in Browser
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="version-note">
+      Current version: <strong>v0.1.0</strong> &nbsp;·&nbsp;
+      <a href="https://github.com/ldcyes/markdown-pro/releases" target="_blank">All releases →</a>
+      &nbsp;·&nbsp; MIT License
+    </p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>
+    <span class="footer-brand">Markdown Pro</span> &nbsp;·&nbsp;
+    Built by <a href="mailto:liangdacheng603@gmail.com">Dacheng Liang</a>
+    &nbsp;·&nbsp; MIT License
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/ldcyes/markdown-pro" target="_blank">GitHub</a>
+    <a href="https://github.com/ldcyes/markdown-pro/issues" target="_blank">Issues</a>
+    <a href="https://github.com/ldcyes/markdown-pro/releases" target="_blank">Releases</a>
+  </div>
+</footer>
+
+</body>
+</html>
