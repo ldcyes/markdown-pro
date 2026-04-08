@@ -1,10 +1,10 @@
 [package]
 name = "markdown-pro"
-version = "0.1.0"
+version = "0.1.2"
 description = "A Typora-style Markdown editor"
-authors = ["you"]
+authors = ["Dacheng Liang <liangdacheng603@gmail.com>"]
 license = "MIT"
-repository = ""
+repository = "https://github.com/ldcyes/markdown-pro"
 edition = "2021"
 
 [build-dependencies]
