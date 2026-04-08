@@ -18,7 +18,7 @@
     "identifier": "com.markdownpro.app",
     "longDescription": "A Typora-style WYSIWYG Markdown editor with LaTeX and Mermaid support",
     "shortDescription": "Markdown Pro Editor",
-    "targets": ["dmg", "app", "updater"],
+    "targets": "all",
     "iOS": {
       "minimumSystemVersion": "14.0",
       "developmentTeam": "YOUR_TEAM_ID"

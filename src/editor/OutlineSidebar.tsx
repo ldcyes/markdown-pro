@@ -45,10 +45,10 @@ export function OutlineSidebar({
   onSelect,
 }: OutlineSidebarProps) {
   return (
-    <aside className="editor__sidebar" aria-label="Document outline">
+    <aside className="editor__sidebar" aria-label="Document outline" style={{ height: "100%" }}>
       <div className="editor__sidebar-header">
         <span className="editor__sidebar-label">Outline</span>
-        <p className="editor__sidebar-copy">Jump between headings in the current document.</p>
+        <p className="editor__sidebar-copy">Navigate headings</p>
       </div>
       {items.length > 0 ? (
         <ul className="editor__outline-list">

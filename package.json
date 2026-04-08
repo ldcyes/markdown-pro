@@ -18,10 +18,14 @@
     "prosemirror",
     "tauri"
   ],
-  "author": "",
+  "author": "Dacheng Liang <liangdacheng603@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "@types/katex": "^0.16.8",
+    "docx": "^9.6.1",
+    "file-saver": "^2.0.5",
+    "highlight.js": "^11.11.1",
+    "html2pdf.js": "^0.14.0",
     "jszip": "^3.10.1",
     "katex": "^0.16.45",
     "lucide-react": "^0.542.0",
@@ -43,6 +47,7 @@
   "devDependencies": {
     "@tauri-apps/api": "^2.0.1",
     "@tauri-apps/cli": "2.0.0-rc.18",
+    "@types/file-saver": "^2.0.7",
     "@types/markdown-it": "^14.1.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

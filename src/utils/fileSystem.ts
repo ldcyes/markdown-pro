@@ -142,6 +142,39 @@ export function clearDraftFromLocalStorage(key = DEFAULT_DRAFT_KEY) {
   }
 }
 
+export function saveDraftToLocalStorageWithKey(
+  draft: MarkdownDraft,
+  key: string,
+): MarkdownDraft | null {
+  if (!canUseBrowserStorage()) {
+    return null;
+  }
+
+  try {
+    return saveDraft(window.localStorage, draft, key);
+  } catch {
+    return null;
+  }
+}
+
+export function loadAllDraftsFromLocalStorage(): MarkdownDraft[] {
+  if (!canUseBrowserStorage()) {
+    return [];
+  }
+
+  const drafts: MarkdownDraft[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key && key.startsWith("markdown-pro:tab:")) {
+      const draft = loadDraft(window.localStorage, key);
+      if (draft) {
+        drafts.push(draft);
+      }
+    }
+  }
+  return drafts;
+}
+
 export async function openMarkdownFile(): Promise<MarkdownFileSnapshot | null> {
   if (typeof document === "undefined") {
     return null;
@@ -183,6 +216,121 @@ export function downloadMarkdownFile(
   anchor.download = normalizeMarkdownFilename(fileName);
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export async function exportToPdf(
+  editorElement: HTMLElement,
+  fileName = "untitled.md",
+) {
+  if (typeof document === "undefined") return;
+
+  const html2pdf = (await import("html2pdf.js")).default;
+  const baseName = fileName.replace(/\.(md|markdown)$/i, "");
+
+  const opt = {
+    margin: [10, 10, 10, 10] as [number, number, number, number],
+    filename: `${baseName}.pdf`,
+    image: { type: "jpeg" as const, quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const },
+  };
+
+  html2pdf().set(opt).from(editorElement).save();
+}
+
+export async function exportToDocx(
+  markdownContent: string,
+  fileName = "untitled.md",
+) {
+  if (typeof document === "undefined") return;
+
+  const docx = await import("docx");
+  const { saveAs } = await import("file-saver");
+  const baseName = fileName.replace(/\.(md|markdown)$/i, "");
+
+  const { Document, Paragraph, TextRun, HeadingLevel, Packer } = docx;
+  const lines = markdownContent.split("\n");
+  const children: InstanceType<typeof Paragraph>[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith("### ")) {
+      children.push(
+        new Paragraph({
+          text: line.slice(4),
+          heading: HeadingLevel.HEADING_3,
+        }),
+      );
+    } else if (line.startsWith("## ")) {
+      children.push(
+        new Paragraph({
+          text: line.slice(3),
+          heading: HeadingLevel.HEADING_2,
+        }),
+      );
+    } else if (line.startsWith("# ")) {
+      children.push(
+        new Paragraph({
+          text: line.slice(2),
+          heading: HeadingLevel.HEADING_1,
+        }),
+      );
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      children.push(
+        new Paragraph({
+          text: line.slice(2),
+          bullet: { level: 0 },
+        }),
+      );
+    } else if (line.trim() === "") {
+      children.push(new Paragraph({ text: "" }));
+    } else {
+      // Parse inline formatting
+      const runs: InstanceType<typeof TextRun>[] = [];
+      let remaining = line;
+
+      while (remaining.length > 0) {
+        const boldMatch = remaining.match(/^\*\*(.+?)\*\*/);
+        const italicMatch = remaining.match(/^\*(.+?)\*/);
+        const codeMatch = remaining.match(/^`(.+?)`/);
+
+        if (boldMatch) {
+          runs.push(new TextRun({ text: boldMatch[1], bold: true }));
+          remaining = remaining.slice(boldMatch[0].length);
+        } else if (italicMatch) {
+          runs.push(new TextRun({ text: italicMatch[1], italics: true }));
+          remaining = remaining.slice(italicMatch[0].length);
+        } else if (codeMatch) {
+          runs.push(
+            new TextRun({
+              text: codeMatch[1],
+              font: "Courier New",
+            }),
+          );
+          remaining = remaining.slice(codeMatch[0].length);
+        } else {
+          const nextSpecial = remaining.search(/[*`]/);
+          if (nextSpecial === -1) {
+            runs.push(new TextRun({ text: remaining }));
+            remaining = "";
+          } else {
+            runs.push(
+              new TextRun({ text: remaining.slice(0, nextSpecial) }),
+            );
+            remaining = remaining.slice(nextSpecial);
+          }
+        }
+      }
+
+      children.push(new Paragraph({ children: runs }));
+    }
+  }
+
+  const doc = new Document({
+    sections: [{ children }],
+  });
+
+  const buffer = await Packer.toBlob(doc);
+  saveAs(buffer, `${baseName}.docx`);
 }
 
 export function formatFileSize(bytes: number): string {

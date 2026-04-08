@@ -9,6 +9,12 @@ function normalizeTableAlignment(value: unknown) {
     : null;
 }
 
+function normalizeTextAlignment(value: unknown) {
+  return value === "left" || value === "center" || value === "right"
+    ? value
+    : null;
+}
+
 const imageNode = {
   image: {
     inline: true,
@@ -28,17 +34,17 @@ const imageNode = {
           src: dom.getAttribute("src"),
           title: dom.getAttribute("title"),
           alt: dom.getAttribute("alt"),
-          width: dom.getAttribute("width"),
-          height: dom.getAttribute("height"),
+          width: dom.getAttribute("width") || dom.style.width || null,
+          height: dom.getAttribute("height") || dom.style.height || null,
         }),
       },
     ],
     toDOM: (node: { attrs: Record<string, string | number | null> }) => {
       const { src, alt, title, width, height } = node.attrs;
-      const style =
-        width || height
-          ? `width: ${width || "auto"}; height: ${height || "auto"};`
-          : "";
+      // Default to 100% width if no explicit size set
+      const w = width || "100%";
+      const h = height || "auto";
+      const style = `max-width: 100%; width: ${w}; height: ${h};`;
 
       return ["img", { src: (src as string) || "", alt: (alt as string) || "", title: (title as string) || "", style }] as const;
     },
@@ -113,6 +119,49 @@ const nodes = addListNodes(
   "paragraph block*",
   "block",
 )
+  // Override paragraph to support text-align
+  .update("paragraph", {
+    content: "inline*",
+    group: "block",
+    attrs: { align: { default: null } },
+    parseDOM: [{
+      tag: "p",
+      getAttrs: (dom: HTMLElement) => ({
+        align: normalizeTextAlignment(dom.style.textAlign || dom.getAttribute("align")),
+      }),
+    }],
+    toDOM: (node: ProseMirrorNode) => {
+      const align = normalizeTextAlignment(node.attrs.align);
+      return align
+        ? ["p", { style: `text-align:${align}` }, 0]
+        : ["p", 0];
+    },
+  })
+  // Override heading to support text-align
+  .update("heading", {
+    content: "inline*",
+    group: "block",
+    defining: true,
+    attrs: {
+      level: { default: 1, validate: "number" },
+      align: { default: null },
+    },
+    parseDOM: [
+      { tag: "h1", getAttrs: (dom: HTMLElement) => ({ level: 1, align: normalizeTextAlignment(dom.style.textAlign) }) },
+      { tag: "h2", getAttrs: (dom: HTMLElement) => ({ level: 2, align: normalizeTextAlignment(dom.style.textAlign) }) },
+      { tag: "h3", getAttrs: (dom: HTMLElement) => ({ level: 3, align: normalizeTextAlignment(dom.style.textAlign) }) },
+      { tag: "h4", getAttrs: (dom: HTMLElement) => ({ level: 4, align: normalizeTextAlignment(dom.style.textAlign) }) },
+      { tag: "h5", getAttrs: (dom: HTMLElement) => ({ level: 5, align: normalizeTextAlignment(dom.style.textAlign) }) },
+      { tag: "h6", getAttrs: (dom: HTMLElement) => ({ level: 6, align: normalizeTextAlignment(dom.style.textAlign) }) },
+    ],
+    toDOM: (node: ProseMirrorNode) => {
+      const tag = `h${node.attrs.level as number}`;
+      const align = normalizeTextAlignment(node.attrs.align);
+      return align
+        ? [tag, { style: `text-align:${align}` }, 0]
+        : [tag, 0];
+    },
+  })
   .update("image", imageNode.image)
   .addToEnd("math_inline", mathInlineNode.math_inline)
   .addToEnd("math_block", mathBlockNode.math_block)

@@ -36,6 +36,15 @@
   --surface-focus-ring: rgba(251, 191, 36, 0.16);
   --code-bg: #1f2937;
   --code-text: #f9fafb;
+  --shortcut-bg: rgba(255, 250, 240, 0.95);
+  --shortcut-border: rgba(180, 83, 9, 0.10);
+  --shortcut-text: #78350f;
+  --shortcut-muted: #9ca3af;
+  --shortcut-kbd-bg: rgba(255, 255, 255, 0.9);
+  --shortcut-kbd-border: rgba(180, 83, 9, 0.2);
+  --shortcut-separator: rgba(180, 83, 9, 0.10);
+  --resizer-color: rgba(180, 83, 9, 0.18);
+  --resizer-hover: rgba(217, 119, 6, 0.4);
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 }
 
@@ -78,6 +87,15 @@
   --surface-focus-ring: rgba(251, 191, 36, 0.18);
   --code-bg: rgba(2, 6, 23, 0.92);
   --code-text: #f8fafc;
+  --shortcut-bg: rgba(15, 23, 42, 0.95);
+  --shortcut-border: rgba(245, 158, 11, 0.10);
+  --shortcut-text: #fbbf24;
+  --shortcut-muted: #94a3b8;
+  --shortcut-kbd-bg: rgba(30, 41, 59, 0.9);
+  --shortcut-kbd-border: rgba(245, 158, 11, 0.2);
+  --shortcut-separator: rgba(245, 158, 11, 0.10);
+  --resizer-color: rgba(245, 158, 11, 0.18);
+  --resizer-hover: rgba(251, 191, 36, 0.4);
 }
 
 * {
@@ -96,28 +114,160 @@ body {
   min-height: 100vh;
 }
 
+/* ─── Editor frame ─── */
 .editor {
   border: 1px solid var(--editor-frame-border);
-  border-radius: 24px;
-  overflow: clip;
+  border-radius: 12px;
+  overflow: hidden;
   background: var(--editor-frame-bg);
   box-shadow: var(--editor-frame-shadow);
   backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
 }
 
+/* ─── Tab bar ─── */
+.editor__tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 8px;
+  background: var(--editor-meta-bg);
+  border-bottom: 1px solid var(--editor-meta-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.editor__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.editor__tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-right: 1px solid var(--editor-meta-border);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--editor-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 100ms, color 100ms;
+  position: relative;
+  user-select: none;
+}
+
+.editor__tab:hover {
+  background: var(--outline-hover-bg);
+  color: var(--tool-text);
+}
+
+.editor__tab--active {
+  background: var(--surface-bg);
+  color: var(--tool-text);
+  border-bottom: 2px solid var(--outline-accent);
+  margin-bottom: -1px;
+}
+
+.editor__tab-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.editor__tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--outline-accent);
+  flex-shrink: 0;
+}
+
+.editor__tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--editor-muted);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 100ms, background-color 100ms;
+}
+
+.editor__tab:hover .editor__tab-close,
+.editor__tab--active .editor__tab-close {
+  opacity: 1;
+}
+
+.editor__tab-close:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #dc2626;
+}
+
+.editor__tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--editor-muted);
+  cursor: pointer;
+  transition: color 100ms;
+}
+
+.editor__tab-add:hover {
+  color: var(--tool-text);
+}
+
+/* ─── Auto-save toggle ─── */
+.editor__autosave-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--editor-muted);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.editor__autosave-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--outline-accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+/* ─── Meta bar (title bar) ─── */
 .editor__meta {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 22px;
+  padding: 10px 18px;
   border-bottom: 1px solid var(--editor-meta-border);
   background: var(--editor-meta-bg);
+  flex-shrink: 0;
 }
 
 .editor__details {
-  min-width: min(100%, 340px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
 
 .editor__label {
@@ -126,98 +276,140 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--editor-label);
+  white-space: nowrap;
 }
 
 .editor__hint {
   margin: 0;
   color: var(--editor-muted);
-  font-size: 0.92rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* ─── Ribbon Toolbar (Word-style) ─── */
 .editor__toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: space-between;
-  padding: 14px 18px;
+  flex-wrap: nowrap;
+  gap: 2px;
+  align-items: stretch;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--toolbar-border);
   background: var(--toolbar-bg);
+  flex-shrink: 0;
+  overflow-x: auto;
 }
 
-.editor__toolbar-group {
+.editor__ribbon-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+  border-right: 1px solid var(--toolbar-border);
+  position: relative;
 }
 
-.editor__toolbar-group--file {
-  justify-content: flex-end;
+.editor__ribbon-group:last-child {
+  border-right: none;
+}
+
+.editor__ribbon-group-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--editor-muted);
+  text-align: center;
+  padding: 1px 0 2px;
+  user-select: none;
+}
+
+.editor__ribbon-buttons {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .editor__tool {
-  border: 1px solid var(--tool-border);
-  border-radius: 999px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
-  background: var(--tool-bg);
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: transparent;
   color: var(--tool-text);
   font: inherit;
-  font-size: 0.92rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition:
-    transform 120ms ease,
-    border-color 120ms ease,
-    background-color 120ms ease;
+    background-color 100ms ease,
+    border-color 100ms ease;
+  white-space: nowrap;
 }
 
 .editor__tool:hover {
-  border-color: color-mix(in srgb, var(--tool-border) 60%, white);
-  transform: translateY(-1px);
+  border-color: var(--tool-border);
+  background: var(--tool-bg);
 }
 
 .editor__tool--active {
   border-color: var(--tool-active-border);
   background: var(--tool-active-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .editor__tool--file {
   background: var(--tool-file-bg);
   color: var(--tool-file-text);
+  border-radius: 4px;
+  padding: 5px 10px;
 }
 
-.editor__mount {
-  flex: 1 1 auto;
-  padding: 24px;
-  position: relative;
-  pointer-events: auto;
-  overflow-y: auto;
+.editor__tool--file:hover {
+  opacity: 0.9;
 }
 
+.editor__tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor__tool:disabled:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* ─── Workspace (sidebar + editor) ─── */
 .editor__workspace {
   display: flex;
   align-items: stretch;
-  min-height: 480px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
+/* ─── Sidebar ─── */
 .editor__sidebar {
-  width: min(280px, 34%);
-  padding: 20px 18px 24px;
+  flex-shrink: 0;
+  padding: 14px 14px 18px;
   border-right: 1px solid var(--sidebar-border);
   background: var(--sidebar-bg);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .editor__sidebar-header {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .editor__sidebar-label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 0.76rem;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -228,7 +420,7 @@ body {
 .editor__outline-empty {
   margin: 0;
   color: var(--editor-muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   line-height: 1.55;
 }
 
@@ -239,33 +431,32 @@ body {
 }
 
 .editor__outline-item + .editor__outline-item {
-  margin-top: 6px;
+  margin-top: 3px;
 }
 
 .editor__outline-button {
   width: 100%;
   border: 0;
-  border-radius: 14px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  padding-left: calc(12px + var(--outline-depth, 0) * 16px);
+  gap: 8px;
+  padding: 6px 8px;
+  padding-left: calc(8px + var(--outline-depth, 0) * 14px);
   background: transparent;
   color: var(--outline-text);
   text-align: left;
   font: inherit;
+  font-size: 0.82rem;
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    transform 120ms ease;
+    background-color 100ms ease,
+    color 100ms ease;
 }
 
 .editor__outline-button:hover {
   background: var(--outline-hover-bg);
   color: var(--tool-text);
-  transform: translateX(2px);
 }
 
 .editor__outline-button--active {
@@ -276,18 +467,59 @@ body {
 
 .editor__outline-level {
   flex: 0 0 auto;
-  min-width: 2.2rem;
+  min-width: 1.8rem;
   color: var(--outline-accent);
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+/* ─── Resizer handle ─── */
+.editor__resizer {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+  user-select: none;
+  transition: background-color 150ms;
+}
+
+.editor__resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 32px;
+  border-radius: 3px;
+  background: var(--resizer-color);
+  transition: background-color 150ms, height 150ms;
+}
+
+.editor__resizer:hover::after,
+.editor__resizer--dragging::after {
+  background: var(--resizer-hover);
+  height: 48px;
+}
+
+/* ─── Editor mount area ─── */
+.editor__mount {
+  flex: 1 1 auto;
+  padding: 16px;
+  position: relative;
+  pointer-events: auto;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* ─── Editor surface (ProseMirror) ─── */
 .editor__surface {
-  min-height: 420px;
-  padding: clamp(24px, 4vw, 48px);
-  border-radius: 18px;
+  min-height: 100%;
+  padding: clamp(20px, 3vw, 40px);
+  border-radius: 8px;
   border: 1px solid var(--surface-border);
   background: var(--surface-bg);
   outline: none;
@@ -301,13 +533,14 @@ body {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
+  caret-color: var(--surface-text);
 }
 
 .editor__surface:focus {
   border-color: var(--surface-focus-border);
   box-shadow:
     inset 0 1px 2px rgba(17, 24, 39, 0.05),
-    0 0 0 4px var(--surface-focus-ring);
+    0 0 0 3px var(--surface-focus-ring);
 }
 
 .editor__surface > *:first-child {
@@ -351,7 +584,7 @@ body {
 
 .editor__surface pre {
   padding: 16px 18px;
-  border-radius: 14px;
+  border-radius: 8px;
   overflow-x: auto;
   background: var(--code-bg);
   color: var(--code-text);
@@ -364,9 +597,137 @@ body {
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
 }
 
+/* ─── Image styles ─── */
+.editor__surface img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: box-shadow 150ms;
+}
+
+.editor__surface img:hover {
+  box-shadow: 0 0 0 2px var(--surface-focus-border);
+}
+
+.editor__surface img.ProseMirror-selectednode {
+  box-shadow: 0 0 0 3px var(--outline-accent);
+}
+
+/* ─── Table styles ─── */
+.editor__surface table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  table-layout: auto;
+}
+
+.editor__surface th,
+.editor__surface td {
+  border: 1px solid var(--surface-border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 60px;
+}
+
+.editor__surface th {
+  background: color-mix(in srgb, var(--surface-bg) 85%, var(--tool-text) 15%);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.editor__surface tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface-bg) 95%, var(--tool-text) 5%);
+}
+
+/* ProseMirror table selected cell highlight */
+.ProseMirror .selectedCell::after {
+  background: rgba(200, 200, 255, 0.24);
+}
+
+.ProseMirror .column-resize-handle {
+  background-color: var(--resizer-hover);
+  width: 2px;
+}
+
+/* ─── Shortcut Bar (bottom) ─── */
+.editor__shortcuts {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  align-items: center;
+  padding: 6px 14px;
+  border-top: 1px solid var(--shortcut-border);
+  background: var(--shortcut-bg);
+  flex-shrink: 0;
+  overflow-x: auto;
+  font-size: 0.72rem;
+}
+
+.editor__shortcut-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-right: 1px solid var(--shortcut-separator);
+  white-space: nowrap;
+}
+
+.editor__shortcut-group:first-child {
+  padding-left: 0;
+}
+
+.editor__shortcut-group:last-child {
+  border-right: none;
+}
+
+.editor__shortcut-group-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--shortcut-muted);
+  font-size: 0.62rem;
+  margin-right: 2px;
+}
+
+.editor__shortcut-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--shortcut-text);
+}
+
+.editor__shortcut-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--shortcut-kbd-border);
+  background: var(--shortcut-kbd-bg);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.6;
+  min-width: 18px;
+  text-align: center;
+}
+
+.editor__shortcut-label {
+  color: var(--shortcut-muted);
+  font-size: 0.68rem;
+}
+
+/* ─── Responsive ─── */
 @media (max-width: 720px) {
+  .editor {
+    height: calc(100vh - 40px);
+    border-radius: 8px;
+  }
+
   .editor__mount {
-    padding: 14px;
+    padding: 10px;
   }
 
   .editor__workspace {
@@ -374,32 +735,32 @@ body {
   }
 
   .editor__sidebar {
-    width: 100%;
+    width: 100% !important;
+    max-height: 200px;
     border-right: 0;
     border-bottom: 1px solid var(--sidebar-border);
   }
 
+  .editor__resizer {
+    display: none;
+  }
+
   .editor__toolbar {
-    padding: 12px 14px;
-  }
-
-  .editor__toolbar-group,
-  .editor__toolbar-group--file {
-    width: 100%;
-  }
-
-  .editor__tool {
-    flex: 1 1 140px;
-    justify-content: center;
+    padding: 4px 8px;
+    overflow-x: auto;
   }
 
   .editor__surface {
     min-height: 320px;
-    padding: 22px 18px;
+    padding: 16px 14px;
+  }
+
+  .editor__shortcuts {
+    display: none;
   }
 }
 
-/* Ensure ProseMirror editor is fully interactive */
+/* ─── ProseMirror caret fix ─── */
 .ProseMirror {
   cursor: text;
   user-select: text;
@@ -407,18 +768,93 @@ body {
   -moz-user-select: text;
   -ms-user-select: text;
   pointer-events: auto;
+  caret-color: var(--surface-text);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  position: relative;
 }
 
-/* Ensure content inside editor is selectable */
 .ProseMirror-content {
   cursor: text;
   user-select: text;
   -webkit-user-select: text;
 }
 
-/* Fix any Tailwind preflight interference */
 .ProseMirror[contenteditable="true"] {
   user-select: text !important;
   -webkit-user-select: text !important;
   cursor: text !important;
+  caret-color: var(--surface-text) !important;
 }
+
+/* Force caret visibility - fix for disappearing cursor */
+.ProseMirror .ProseMirror-cursor {
+  caret-color: auto;
+}
+
+/* Gapcursor styling */
+.ProseMirror .ProseMirror-gapcursor {
+  display: block;
+  position: relative;
+}
+
+.ProseMirror .ProseMirror-gapcursor::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid var(--surface-text);
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* ─── Syntax highlighting (hljs) ─── */
+.editor__surface .hljs-keyword,
+.editor__surface .hljs-selector-tag,
+.editor__surface .hljs-type { color: #c678dd; }
+
+.editor__surface .hljs-string,
+.editor__surface .hljs-template-variable { color: #98c379; }
+
+.editor__surface .hljs-number,
+.editor__surface .hljs-literal { color: #d19a66; }
+
+.editor__surface .hljs-comment,
+.editor__surface .hljs-doctag { color: #7f848e; font-style: italic; }
+
+.editor__surface .hljs-function,
+.editor__surface .hljs-title { color: #61afef; }
+
+.editor__surface .hljs-variable,
+.editor__surface .hljs-attr { color: #e06c75; }
+
+.editor__surface .hljs-built_in,
+.editor__surface .hljs-builtin-name { color: #56b6c2; }
+
+.editor__surface .hljs-params { color: #abb2bf; }
+
+.editor__surface .hljs-meta,
+.editor__surface .hljs-meta-keyword { color: #e06c75; }
+
+.editor__surface .hljs-meta-string { color: #98c379; }
+
+.editor__surface .hljs-symbol,
+.editor__surface .hljs-class { color: #e5c07b; }
+
+.editor__surface .hljs-operator { color: #56b6c2; }
+
+.editor__surface .hljs-punctuation { color: #abb2bf; }
+
+.editor__surface .hljs-regexp { color: #98c379; }
+
+.editor__surface .hljs-selector-class,
+.editor__surface .hljs-selector-id { color: #e06c75; }
+
+.editor__surface .hljs-tag { color: #e06c75; }
+.editor__surface .hljs-name { color: #e06c75; }

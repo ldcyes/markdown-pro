@@ -17,6 +17,7 @@ export interface ActiveToolbarState {
   headingLevel: number | null;
   italic: boolean;
   table: boolean;
+  textAlign: string | null;
 }
 
 function matchesNodeAttributes(
@@ -151,6 +152,17 @@ export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
     }
   }
 
+  // Detect text alignment from current block
+  let textAlign: string | null = null;
+  const { $from: $alignFrom } = state.selection;
+  for (let depth = $alignFrom.depth; depth > 0; depth -= 1) {
+    const node = $alignFrom.node(depth);
+    if (node.type.name === "paragraph" || node.type.name === "heading") {
+      textAlign = (node.attrs.align as string) || null;
+      break;
+    }
+  }
+
   return {
     bold: isMarkActive(state, "strong"),
     bulletList: isNodeActive(state, "bullet_list"),
@@ -158,5 +170,6 @@ export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
     headingLevel,
     italic: isMarkActive(state, "em"),
     table: isInTable(state),
+    textAlign,
   };
 }

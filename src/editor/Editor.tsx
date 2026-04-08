@@ -1,13 +1,20 @@
 import {
+  useCallback,
   useEffect,
   useEffectEvent,
   useRef,
   useState,
 } from "react";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
   Columns3,
   Code2,
+  FileDown,
+  FilePlus2,
+  FileText,
   FolderOpen,
   Heading1,
   Heading2,
@@ -17,8 +24,10 @@ import {
   List,
   Rows3,
   Save,
+  SaveAll,
   Table2,
   Trash2,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -35,7 +44,7 @@ import {
   splitListItem,
   wrapInList,
 } from "prosemirror-schema-list";
-import { EditorState } from "prosemirror-state";
+import { EditorState, Plugin } from "prosemirror-state";
 import { TextSelection } from "prosemirror-state";
 import {
   addColumnAfter,
@@ -47,16 +56,28 @@ import {
   goToNextCell,
   tableEditing,
 } from "prosemirror-tables";
-import { EditorView } from "prosemirror-view";
+import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
 import "prosemirror-view/style/prosemirror.css";
 import "prosemirror-tables/style/tables.css";
+import hljs from "highlight.js/lib/core";
+import python from "highlight.js/lib/languages/python";
+import cpp from "highlight.js/lib/languages/cpp";
+import c from "highlight.js/lib/languages/c";
+import verilog from "highlight.js/lib/languages/verilog";
+import typescript from "highlight.js/lib/languages/typescript";
+import javascript from "highlight.js/lib/languages/javascript";
+import java from "highlight.js/lib/languages/java";
+import csharp from "highlight.js/lib/languages/csharp";
 import {
   downloadMarkdownFile,
+  exportToDocx,
+  exportToPdf,
   formatFileSize,
   loadDraftFromLocalStorage,
   normalizeMarkdownFilename,
   openMarkdownFile,
   saveDraftToLocalStorage,
+  saveDraftToLocalStorageWithKey,
 } from "../utils/fileSystem.js";
 import { DEFAULT_MARKDOWN } from "./defaultMarkdown";
 import {
@@ -79,11 +100,117 @@ import {
 import { handleImageDrop, handleImagePaste, insertImage } from "./imageUtils.js";
 import { ImageUpload } from "./ImageUpload.js";
 
+// Register highlight.js languages
+hljs.registerLanguage("python", python);
+hljs.registerLanguage("py", python);
+hljs.registerLanguage("cpp", cpp);
+hljs.registerLanguage("c", c);
+hljs.registerLanguage("verilog", verilog);
+hljs.registerLanguage("systemverilog", verilog);
+hljs.registerLanguage("sv", verilog);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("ts", typescript);
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("js", javascript);
+hljs.registerLanguage("java", java);
+hljs.registerLanguage("csharp", csharp);
+hljs.registerLanguage("cs", csharp);
+
 type Command = (
   state: EditorState,
   dispatch?: EditorView["dispatch"],
   view?: EditorView,
 ) => boolean;
+
+const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+const modKey = isMac ? "\u2318" : "Ctrl";
+
+/** Each open tab tracks its own content, dirty state, and editor state */
+interface TabState {
+  id: string;
+  fileName: string;
+  content: string;
+  savedContent: string;
+  updatedAt: number;
+  editorStateJSON: unknown | null; // JSON snapshot of ProseMirror state for restoring undo history
+}
+
+let tabIdCounter = 0;
+function nextTabId() {
+  return `tab-${++tabIdCounter}`;
+}
+
+// ─── ProseMirror plugins ───
+
+function codeHighlightPlugin() {
+  function getDecorations(doc: EditorState["doc"]) {
+    const decorations: Decoration[] = [];
+    doc.descendants((node, pos) => {
+      if (node.type.name !== "code_block") return;
+      const text = node.textContent;
+      if (!text.trim()) return;
+      let result;
+      try {
+        result = hljs.highlightAuto(text, [
+          "python", "cpp", "c", "verilog", "systemverilog",
+          "typescript", "javascript", "java", "csharp",
+        ]);
+      } catch { return; }
+      if (!result.value) return;
+      const htmlStr = result.value;
+      let textOffset = 0;
+      const spanRegex = /<span class="(hljs-[^"]+)">([^<]*)<\/span>|([^<]+)/g;
+      let match;
+      while ((match = spanRegex.exec(htmlStr)) !== null) {
+        const className = match[1];
+        const spanText = match[2] ?? match[3];
+        if (!spanText) continue;
+        const decoded = spanText.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+        if (className && decoded.length > 0) {
+          const from = pos + 1 + textOffset;
+          const to = from + decoded.length;
+          decorations.push(Decoration.inline(from, to, { class: className }));
+        }
+        textOffset += decoded.length;
+      }
+    });
+    return DecorationSet.create(doc, decorations);
+  }
+
+  return new Plugin({
+    state: {
+      init(_config, state) { return getDecorations(state.doc); },
+      apply(tr, decorations, _oldState, newState) {
+        if (tr.docChanged) return getDecorations(newState.doc);
+        return decorations.map(tr.mapping, tr.doc);
+      },
+    },
+    props: {
+      decorations(state) { return this.getState(state); },
+    },
+  });
+}
+
+/** Ensures the document always ends with an empty paragraph so cursor can go to the end */
+function trailingParagraphPlugin() {
+  return new Plugin({
+    appendTransaction(_transactions, _oldState, newState) {
+      const { doc, tr } = newState;
+      const lastNode = doc.lastChild;
+      if (!lastNode) return null;
+      // If last node is not an empty paragraph, append one
+      const isEmptyParagraph =
+        lastNode.type.name === "paragraph" &&
+        lastNode.content.size === 0;
+      if (!isEmptyParagraph) {
+        const p = editorSchema.nodes.paragraph.create();
+        tr.insert(doc.content.size, p);
+        return tr;
+      }
+      return null;
+    },
+  });
+}
 
 function createEditorState(markdownSource: string) {
   const { strong, em } = editorSchema.marks;
@@ -112,132 +239,226 @@ function createEditorState(markdownSource: string) {
         "Shift-Tab": chainCommands(goToNextCell(-1), liftListItem(list_item)),
       }),
       tableEditing(),
+      codeHighlightPlugin(),
+      trailingParagraphPlugin(),
       keymap(baseKeymap),
     ],
   });
 }
 
 function formatAutosaveLabel(timestamp: number) {
-  if (!timestamp) {
-    return "Autosave ready";
-  }
+  if (!timestamp) return "Autosave ready";
+  return `Auto-saved ${new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(timestamp)}`;
+}
 
-  return `Auto-saved ${new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(timestamp)}`;
+// Text-align command
+function setTextAlign(align: string | null): Command {
+  return (state, dispatch) => {
+    const { from, to } = state.selection;
+    let tr = state.tr;
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type.name === "paragraph" || node.type.name === "heading") {
+        tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, align });
+      }
+    });
+    if (tr.docChanged && dispatch) {
+      dispatch(tr);
+    }
+    return true;
+  };
 }
 
 export function Editor() {
-  const [initialDraft] = useState(() => {
-    return (
-      loadDraftFromLocalStorage() ?? {
-        content: DEFAULT_MARKDOWN,
-        fileName: "untitled.md",
-        updatedAt: 0,
-      }
-    );
+  // Initialize tabs
+  const [tabs, setTabs] = useState<TabState[]>(() => {
+    const draft = loadDraftFromLocalStorage();
+    const content = draft?.content ?? DEFAULT_MARKDOWN;
+    const fileName = draft?.fileName ?? "untitled.md";
+    const id = nextTabId();
+    return [{
+      id, fileName, content,
+      savedContent: content,
+      updatedAt: draft?.updatedAt ?? 0,
+      editorStateJSON: null,
+    }];
   });
+  const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
+  const [autoSave, setAutoSave] = useState(() => {
+    try {
+      return localStorage.getItem("markdown-pro:autosave") !== "off";
+    } catch { return true; }
+  });
+
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const [markdownSource, setMarkdownSource] = useState(initialDraft.content);
-  const [documentName, setDocumentName] = useState(initialDraft.fileName);
-  const [lastSavedAt, setLastSavedAt] = useState(initialDraft.updatedAt);
   const [statusMessage, setStatusMessage] = useState(
-    initialDraft.updatedAt ? "Restored local draft" : "Editing draft",
+    activeTab.updatedAt ? "Restored local draft" : "Editing draft",
   );
   const [activeToolbarState, setActiveToolbarState] = useState(() =>
-    getActiveToolbarState(createEditorState(initialDraft.content)),
+    getActiveToolbarState(createEditorState(activeTab.content)),
   );
-  const [initialOutlineState] = useState(() => {
-    const items = extractOutline(markdownToProseMirror(initialDraft.content));
-
-    return {
-      activeId: findActiveOutlineId(items, 0),
-      items,
-    };
-  });
-  const [outlineItems, setOutlineItems] = useState<OutlineItem[]>(
-    initialOutlineState.items,
+  const [outlineItems, setOutlineItems] = useState<OutlineItem[]>(() =>
+    extractOutline(markdownToProseMirror(activeTab.content)),
   );
-  const [activeOutlineId, setActiveOutlineId] = useState<string | null>(
-    initialOutlineState.activeId,
+  const [activeOutlineId, setActiveOutlineId] = useState<string | null>(() =>
+    findActiveOutlineId(outlineItems, 0),
   );
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(240);
+  const resizerRef = useRef<HTMLDivElement | null>(null);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const updateActiveTab = useCallback(
+    (patch: Partial<TabState>) => {
+      setTabs((prev) =>
+        prev.map((t) => (t.id === activeTabId ? { ...t, ...patch } : t)),
+      );
+    },
+    [activeTabId],
+  );
 
   const handleImageInsert = useEffectEvent(
     (src: string, alt?: string, width?: number, height?: number) => {
       const view = viewRef.current;
-      if (!view) {
-        return;
-      }
-
+      if (!view) return;
       insertImage(view, src, alt, width, height);
       setShowImageUpload(false);
     },
   );
 
   const syncSnapshot = useEffectEvent(
-    (
-      nextState: EditorState,
-      options?: {
-        fileName?: string;
-        statusMessage?: string;
-      },
-    ) => {
+    (nextState: EditorState, options?: { fileName?: string; statusMessage?: string }) => {
       const nextOutlineItems = extractOutline(nextState.doc);
-
-      setMarkdownSource(proseMirrorToMarkdown(nextState.doc));
+      const md = proseMirrorToMarkdown(nextState.doc);
       setActiveToolbarState(getActiveToolbarState(nextState));
       setOutlineItems(nextOutlineItems);
-      setActiveOutlineId(
-        findActiveOutlineId(nextOutlineItems, nextState.selection.from),
-      );
+      setActiveOutlineId(findActiveOutlineId(nextOutlineItems, nextState.selection.from));
 
-      if (options?.fileName) {
-        setDocumentName(normalizeMarkdownFilename(options.fileName));
-      }
-
-      setStatusMessage(options?.statusMessage ?? "Unsaved changes");
+      const tabPatch: Partial<TabState> = { content: md };
+      if (options?.fileName) tabPatch.fileName = normalizeMarkdownFilename(options.fileName);
+      // If auto-save is on, also update savedContent
+      if (autoSave) tabPatch.savedContent = md;
+      updateActiveTab(tabPatch);
+      setStatusMessage(options?.statusMessage ?? (autoSave ? "Auto-saved" : "Unsaved changes"));
     },
   );
 
   const syncToolbarState = useEffectEvent((nextState: EditorState) => {
     setActiveToolbarState(getActiveToolbarState(nextState));
-    setActiveOutlineId(
-      findActiveOutlineId(outlineItems, nextState.selection.from),
-    );
+    setActiveOutlineId(findActiveOutlineId(outlineItems, nextState.selection.from));
   });
+
+  // ─── Tab operations ───
+  const handleNewTab = useEffectEvent(() => {
+    const id = nextTabId();
+    const content = DEFAULT_MARKDOWN;
+    setTabs((prev) => [
+      ...prev,
+      { id, fileName: "untitled.md", content, savedContent: content, updatedAt: 0, editorStateJSON: null },
+    ]);
+    setActiveTabId(id);
+  });
+
+  const handleCloseTab = useEffectEvent((tabId: string) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    if (tab.content !== tab.savedContent) {
+      if (!window.confirm(`"${tab.fileName}" has unsaved changes.\n\nDiscard changes and close?`)) return;
+    }
+    const remaining = tabs.filter((t) => t.id !== tabId);
+    if (remaining.length === 0) {
+      handleNewTab();
+      setTabs((prev) => prev.filter((t) => t.id !== tabId));
+      return;
+    }
+    setTabs(remaining);
+    if (activeTabId === tabId) {
+      const closedIndex = tabs.findIndex((t) => t.id === tabId);
+      const nextIndex = Math.min(closedIndex, remaining.length - 1);
+      setActiveTabId(remaining[nextIndex].id);
+    }
+  });
+
+  const switchToTab = useEffectEvent((tabId: string) => {
+    if (tabId === activeTabId) return;
+    // Save current ProseMirror state JSON for undo history preservation
+    const view = viewRef.current;
+    if (view) {
+      const md = proseMirrorToMarkdown(view.state.doc);
+      const stateJSON = view.state.toJSON();
+      setTabs((prev) =>
+        prev.map((t) => (t.id === activeTabId ? { ...t, content: md, editorStateJSON: stateJSON } : t)),
+      );
+    }
+    setActiveTabId(tabId);
+  });
+
+  // When activeTabId changes, reload editor state (with undo history if available)
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+
+    let nextState: EditorState;
+    if (tab.editorStateJSON) {
+      // Restore full state with undo history
+      try {
+        nextState = EditorState.fromJSON(
+          { schema: editorSchema, plugins: createEditorState("").plugins },
+          tab.editorStateJSON as Record<string, unknown>,
+        );
+      } catch {
+        nextState = createEditorState(tab.content);
+      }
+    } else {
+      nextState = createEditorState(tab.content);
+    }
+    view.updateState(nextState);
+    const nextOutlineItems = extractOutline(nextState.doc);
+    setActiveToolbarState(getActiveToolbarState(nextState));
+    setOutlineItems(nextOutlineItems);
+    setActiveOutlineId(findActiveOutlineId(nextOutlineItems, 0));
+    setStatusMessage(tab.updatedAt ? "Restored draft" : "Editing draft");
+  }, [activeTabId]);
 
   const handleOpenFile = useEffectEvent(async () => {
     const nextFile = await openMarkdownFile();
-    const view = viewRef.current;
-
-    if (!nextFile || !view) {
-      return;
-    }
-
-    const nextState = createEditorState(nextFile.content);
-    view.updateState(nextState);
-    view.focus();
-    syncSnapshot(nextState, {
-      fileName: nextFile.fileName,
-      statusMessage: `Opened ${nextFile.fileName}`,
-    });
+    if (!nextFile) return;
+    const existingTab = tabs.find((t) => t.fileName === nextFile.fileName);
+    if (existingTab) { setActiveTabId(existingTab.id); return; }
+    const id = nextTabId();
+    setTabs((prev) => [
+      ...prev,
+      { id, fileName: nextFile.fileName, content: nextFile.content, savedContent: nextFile.content, updatedAt: Date.now(), editorStateJSON: null },
+    ]);
+    setActiveTabId(id);
   });
 
   const handleSaveFile = useEffectEvent(() => {
-    downloadMarkdownFile(markdownSource, documentName);
-    setStatusMessage(`Downloaded ${normalizeMarkdownFilename(documentName)}`);
+    downloadMarkdownFile(activeTab.content, activeTab.fileName);
+    updateActiveTab({ savedContent: activeTab.content });
+    setStatusMessage(`Downloaded ${normalizeMarkdownFilename(activeTab.fileName)}`);
+  });
+
+  const handleExportPdf = useEffectEvent(() => {
+    const editorEl = mountRef.current?.querySelector(".ProseMirror") as HTMLElement | null;
+    if (!editorEl) return;
+    exportToPdf(editorEl, activeTab.fileName);
+    setStatusMessage("Exported as PDF");
+  });
+
+  const handleExportDocx = useEffectEvent(() => {
+    exportToDocx(activeTab.content, activeTab.fileName);
+    setStatusMessage("Exported as Word");
   });
 
   const runEditorCommand = useEffectEvent((command: Command) => {
     const view = viewRef.current;
-
-    if (!view) {
-      return;
-    }
-
+    if (!view) return;
     command(view.state, view.dispatch, view);
     view.focus();
   });
@@ -245,330 +466,262 @@ export function Editor() {
   const toggleBulletListCommand = useEffectEvent(() => {
     const { bullet_list, list_item } = editorSchema.nodes;
     const view = viewRef.current;
-
-    if (!view) {
-      return;
-    }
-
-    const command = isNodeActive(view.state, "bullet_list")
-      ? liftListItem(list_item)
-      : wrapInList(bullet_list);
-
-    runEditorCommand(command);
+    if (!view) return;
+    runEditorCommand(
+      isNodeActive(view.state, "bullet_list") ? liftListItem(list_item) : wrapInList(bullet_list),
+    );
   });
 
   const handleOutlineSelect = useEffectEvent((item: OutlineItem) => {
     const view = viewRef.current;
-
-    if (!view) {
-      return;
-    }
-
-    const nextPosition = Math.min(item.position + 1, view.state.doc.content.size);
-    const transaction = view.state.tr
-      .setSelection(TextSelection.create(view.state.doc, nextPosition))
-      .scrollIntoView();
-
-    view.dispatch(transaction);
+    if (!view) return;
+    const pos = Math.min(item.position + 1, view.state.doc.content.size);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)).scrollIntoView());
     view.focus();
   });
 
-  useEffect(() => {
-    if (!mountRef.current) {
-      return;
-    }
+  const handleResizerMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+      const onMouseMove = (ev: MouseEvent) => {
+        const ws = workspaceRef.current;
+        const maxW = ws ? ws.offsetWidth * 0.5 : 500;
+        setSidebarWidth(Math.max(140, Math.min(maxW, startWidth + ev.clientX - startX)));
+      };
+      const onMouseUp = () => {
+        setIsDragging(false);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [sidebarWidth],
+  );
 
+  // Toggle autoSave
+  const toggleAutoSave = useEffectEvent(() => {
+    const next = !autoSave;
+    setAutoSave(next);
+    try { localStorage.setItem("markdown-pro:autosave", next ? "on" : "off"); } catch { /* noop */ }
+    if (next) {
+      // Immediately mark current content as saved
+      updateActiveTab({ savedContent: activeTab.content });
+      setStatusMessage("Auto-save enabled");
+    } else {
+      setStatusMessage("Auto-save disabled");
+    }
+  });
+
+  // Mount ProseMirror
+  useEffect(() => {
+    if (!mountRef.current) return;
+    const initContent = tabs.find((t) => t.id === activeTabId)?.content ?? DEFAULT_MARKDOWN;
     const view = new EditorView(mountRef.current, {
-      state: createEditorState(initialDraft.content),
+      state: createEditorState(initContent),
       editable: () => true,
-      attributes: {
-        class: "ProseMirror editor__surface",
-        role: "textbox",
-        "aria-multiline": "true",
-      },
+      attributes: { class: "ProseMirror editor__surface", role: "textbox", "aria-multiline": "true" },
       dispatchTransaction(transaction) {
         const nextState = view.state.apply(transaction);
         view.updateState(nextState);
-
-        if (transaction.docChanged) {
-          syncSnapshot(nextState);
-          return;
-        }
-
+        if (transaction.docChanged) { syncSnapshot(nextState); return; }
         syncToolbarState(nextState);
       },
       handleDOMEvents: {
-        paste: (view, event) => {
-          return handleImagePaste(view, event);
-        },
-        drop: (view, event) => {
-          return handleImageDrop(view, event);
-        },
+        paste: (view, event) => handleImagePaste(view, event),
+        drop: (view, event) => handleImageDrop(view, event),
       },
     });
     viewRef.current = view;
+    return () => { viewRef.current?.destroy(); viewRef.current = null; };
+  }, []);
 
-    return () => {
-      viewRef.current?.destroy();
-      viewRef.current = null;
-    };
-  }, [initialDraft.content]);
-
+  // Draft auto-save to localStorage
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      const savedDraft = saveDraftToLocalStorage({
-        content: markdownSource,
-        fileName: documentName,
-        updatedAt: Date.now(),
-      });
-
-      if (!savedDraft) {
-        return;
-      }
-
-      setDocumentName(savedDraft.fileName);
-      setLastSavedAt(savedDraft.updatedAt);
-      setStatusMessage("Local draft synced");
+    const tid = window.setTimeout(() => {
+      saveDraftToLocalStorageWithKey(
+        { content: activeTab.content, fileName: activeTab.fileName, updatedAt: Date.now() },
+        `markdown-pro:tab:${activeTab.id}`,
+      );
+      saveDraftToLocalStorage({ content: activeTab.content, fileName: activeTab.fileName, updatedAt: Date.now() });
+      updateActiveTab({ updatedAt: Date.now() });
     }, 400);
+    return () => window.clearTimeout(tid);
+  }, [activeTab.content, activeTab.fileName]);
 
-    return () => {
-      window.clearTimeout(timeoutId);
+  // Warn on browser close
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (tabs.some((t) => t.content !== t.savedContent)) e.preventDefault();
     };
-  }, [documentName, markdownSource]);
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [tabs]);
 
   const { strong, em } = editorSchema.marks;
   const { heading, code_block } = editorSchema.nodes;
-  const documentSize = new Blob([markdownSource]).size;
+  const documentSize = new Blob([activeTab.content]).size;
   const outlineTree = buildOutlineTree(outlineItems);
-  const formattingButtons: Array<{
-    active: boolean;
-    icon: LucideIcon;
-    id: string;
-    label: string;
-    onClick: () => void;
-  }> = [
-    {
-      active: activeToolbarState.bold,
-      icon: Bold,
-      id: "bold",
-      label: "Bold",
-      onClick: () => runEditorCommand(toggleMark(strong)),
-    },
-    {
-      active: activeToolbarState.italic,
-      icon: Italic,
-      id: "italic",
-      label: "Italic",
-      onClick: () => runEditorCommand(toggleMark(em)),
-    },
-    {
-      active: activeToolbarState.headingLevel === 1,
-      icon: Heading1,
-      id: "heading-1",
-      label: "Heading 1",
-      onClick: () => runEditorCommand(setBlockType(heading, { level: 1 })),
-    },
-    {
-      active: activeToolbarState.headingLevel === 2,
-      icon: Heading2,
-      id: "heading-2",
-      label: "Heading 2",
-      onClick: () => runEditorCommand(setBlockType(heading, { level: 2 })),
-    },
-    {
-      active: activeToolbarState.headingLevel === 3,
-      icon: Heading3,
-      id: "heading-3",
-      label: "Heading 3",
-      onClick: () => runEditorCommand(setBlockType(heading, { level: 3 })),
-    },
-    {
-      active: activeToolbarState.bulletList,
-      icon: List,
-      id: "bullet-list",
-      label: "List",
-      onClick: () => {
-        void toggleBulletListCommand();
-      },
-    },
-    {
-      active: activeToolbarState.codeBlock,
-      icon: Code2,
-      id: "code-block",
-      label: "Code",
-      onClick: () => runEditorCommand(setBlockType(code_block)),
-    },
-    {
-      active: false,
-      icon: ImageIcon,
-      id: "insert-image",
-      label: "Image",
-      onClick: () => setShowImageUpload(true),
-    },
+
+  type ToolButton = { active?: boolean; disabled?: boolean; icon: LucideIcon; id: string; label: string; variant?: "file"; onClick: () => void };
+
+  const fileGroup: ToolButton[] = [
+    { icon: FilePlus2, id: "new-tab", label: "New", onClick: handleNewTab },
+    { icon: FolderOpen, id: "open-file", label: "Open", onClick: () => { void handleOpenFile(); } },
+    { icon: Save, id: "save-file", label: "Save", variant: "file", onClick: handleSaveFile },
   ];
 
-  const fileButtons: Array<{
-    icon: LucideIcon;
-    id: string;
-    label: string;
-    onClick: () => void;
-  }> = [
-    {
-      icon: FolderOpen,
-      id: "open-file",
-      label: "Open",
-      onClick: () => {
-        void handleOpenFile();
-      },
-    },
-    {
-      icon: Save,
-      id: "save-file",
-      label: "Save",
-      onClick: handleSaveFile,
-    },
+  const formatGroup: ToolButton[] = [
+    { active: activeToolbarState.bold, icon: Bold, id: "bold", label: "Bold", onClick: () => runEditorCommand(toggleMark(strong)) },
+    { active: activeToolbarState.italic, icon: Italic, id: "italic", label: "Italic", onClick: () => runEditorCommand(toggleMark(em)) },
+    { active: activeToolbarState.headingLevel === 1, icon: Heading1, id: "h1", label: "H1", onClick: () => runEditorCommand(setBlockType(heading, { level: 1 })) },
+    { active: activeToolbarState.headingLevel === 2, icon: Heading2, id: "h2", label: "H2", onClick: () => runEditorCommand(setBlockType(heading, { level: 2 })) },
+    { active: activeToolbarState.headingLevel === 3, icon: Heading3, id: "h3", label: "H3", onClick: () => runEditorCommand(setBlockType(heading, { level: 3 })) },
   ];
-  const tableButtons: Array<{
-    disabled?: boolean;
-    icon: LucideIcon;
-    id: string;
-    label: string;
-    onClick: () => void;
-  }> = [
-    {
-      icon: Table2,
-      id: "insert-table",
-      label: "Table",
-      onClick: () => runEditorCommand(insertTable),
-    },
-    {
-      disabled: !activeToolbarState.table,
-      icon: Rows3,
-      id: "add-row-before",
-      label: "Row Before",
-      onClick: () => runEditorCommand(addRowBefore),
-    },
-    {
-      disabled: !activeToolbarState.table,
-      icon: Rows3,
-      id: "add-row-after",
-      label: "Row After",
-      onClick: () => runEditorCommand(addRowAfter),
-    },
-    {
-      disabled: !activeToolbarState.table,
-      icon: Columns3,
-      id: "add-column-before",
-      label: "Col Before",
-      onClick: () => runEditorCommand(addColumnBefore),
-    },
-    {
-      disabled: !activeToolbarState.table,
-      icon: Columns3,
-      id: "add-column-after",
-      label: "Col After",
-      onClick: () => runEditorCommand(addColumnAfter),
-    },
-    {
-      disabled: !activeToolbarState.table,
-      icon: Trash2,
-      id: "delete-row",
-      label: "Delete Row",
-      onClick: () => runEditorCommand(deleteRow),
-    },
-    {
-      disabled: !activeToolbarState.table,
-      icon: Trash2,
-      id: "delete-column",
-      label: "Delete Col",
-      onClick: () => runEditorCommand(deleteColumn),
-    },
+
+  const alignGroup: ToolButton[] = [
+    { active: !activeToolbarState.textAlign || activeToolbarState.textAlign === "left", icon: AlignLeft, id: "align-left", label: "Left", onClick: () => runEditorCommand(setTextAlign(null)) },
+    { active: activeToolbarState.textAlign === "center", icon: AlignCenter, id: "align-center", label: "Center", onClick: () => runEditorCommand(setTextAlign("center")) },
+    { active: activeToolbarState.textAlign === "right", icon: AlignRight, id: "align-right", label: "Right", onClick: () => runEditorCommand(setTextAlign("right")) },
   ];
+
+  const insertGroup: ToolButton[] = [
+    { active: activeToolbarState.bulletList, icon: List, id: "bullet-list", label: "List", onClick: () => { void toggleBulletListCommand(); } },
+    { active: activeToolbarState.codeBlock, icon: Code2, id: "code-block", label: "Code", onClick: () => runEditorCommand(setBlockType(code_block)) },
+    { icon: ImageIcon, id: "insert-image", label: "Image", onClick: () => setShowImageUpload(true) },
+    { icon: Table2, id: "insert-table", label: "Table", onClick: () => runEditorCommand(insertTable) },
+  ];
+
+  const tableGroup: ToolButton[] = [
+    { disabled: !activeToolbarState.table, icon: Rows3, id: "row-before", label: "+Row\u2191", onClick: () => runEditorCommand(addRowBefore) },
+    { disabled: !activeToolbarState.table, icon: Rows3, id: "row-after", label: "+Row\u2193", onClick: () => runEditorCommand(addRowAfter) },
+    { disabled: !activeToolbarState.table, icon: Columns3, id: "col-before", label: "+Col\u2190", onClick: () => runEditorCommand(addColumnBefore) },
+    { disabled: !activeToolbarState.table, icon: Columns3, id: "col-after", label: "+Col\u2192", onClick: () => runEditorCommand(addColumnAfter) },
+    { disabled: !activeToolbarState.table, icon: Trash2, id: "del-row", label: "Del Row", onClick: () => runEditorCommand(deleteRow) },
+    { disabled: !activeToolbarState.table, icon: Trash2, id: "del-col", label: "Del Col", onClick: () => runEditorCommand(deleteColumn) },
+  ];
+
+  const exportGroup: ToolButton[] = [
+    { icon: FileDown, id: "export-pdf", label: "PDF", onClick: handleExportPdf },
+    { icon: FileText, id: "export-docx", label: "Word", onClick: handleExportDocx },
+  ];
+
+  function renderRibbonGroup(label: string, buttons: ToolButton[]) {
+    return (
+      <div className="editor__ribbon-group">
+        <div className="editor__ribbon-buttons">
+          {buttons.map((btn) => {
+            const Icon = btn.icon;
+            const cls = ["editor__tool", btn.active ? "editor__tool--active" : "", btn.variant === "file" ? "editor__tool--file" : ""].filter(Boolean).join(" ");
+            return (
+              <button key={btn.id} type="button" className={cls} aria-label={btn.label} aria-pressed={btn.active} disabled={btn.disabled} onClick={btn.onClick}>
+                <Icon size={15} strokeWidth={2} /><span>{btn.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span className="editor__ribbon-group-label">{label}</span>
+      </div>
+    );
+  }
+
+  const shortcutGroups = [
+    { label: "File", items: [{ keys: [modKey, "S"], desc: "Save" }] },
+    { label: "Edit", items: [{ keys: [modKey, "Z"], desc: "Undo" }, { keys: [modKey, "Y"], desc: "Redo" }] },
+    { label: "Format", items: [{ keys: [modKey, "B"], desc: "Bold" }, { keys: [modKey, "I"], desc: "Italic" }] },
+    { label: "Heading", items: [{ keys: [modKey, "Alt", "1-3"], desc: "H1-H3" }] },
+    { label: "List", items: [{ keys: ["Shift", "Ctrl", "8"], desc: "Bullet" }] },
+    { label: "Table", items: [{ keys: ["Tab"], desc: "Next" }, { keys: ["Shift", "Tab"], desc: "Prev" }] },
+  ];
+
+  const isDirtyTab = activeTab.content !== activeTab.savedContent;
 
   return (
     <section className="editor">
+      {/* Tab bar */}
+      <div className="editor__tabs">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          const isDirty = tab.content !== tab.savedContent;
+          return (
+            <div key={tab.id} className={`editor__tab${isActive ? " editor__tab--active" : ""}`} onClick={() => switchToTab(tab.id)}>
+              <span className="editor__tab-name">
+                {isDirty && <span className="editor__tab-dot" title="Unsaved changes" />}
+                {tab.fileName}
+              </span>
+              <button type="button" className="editor__tab-close" aria-label={`Close ${tab.fileName}`}
+                onClick={(e) => { e.stopPropagation(); handleCloseTab(tab.id); }}>
+                <X size={12} strokeWidth={2.5} />
+              </button>
+            </div>
+          );
+        })}
+        <button type="button" className="editor__tab-add" aria-label="New tab" onClick={handleNewTab}>
+          <FilePlus2 size={14} strokeWidth={2} />
+        </button>
+      </div>
+
+      {/* Meta bar */}
       <div className="editor__meta">
         <div className="editor__details">
-          <span className="editor__label">{documentName}</span>
+          <span className="editor__label">{activeTab.fileName}</span>
           <p className="editor__hint">
             {statusMessage}
-            {` • ${formatFileSize(documentSize)}`}
-            {lastSavedAt ? ` • ${formatAutosaveLabel(lastSavedAt)}` : ""}
+            {` \u2022 ${formatFileSize(documentSize)}`}
+            {activeTab.updatedAt ? ` \u2022 ${formatAutosaveLabel(activeTab.updatedAt)}` : ""}
           </p>
         </div>
+        <label className="editor__autosave-toggle">
+          <input type="checkbox" checked={autoSave} onChange={toggleAutoSave} />
+          <SaveAll size={13} strokeWidth={2} />
+          <span>Auto-save</span>
+        </label>
       </div>
+
+      {/* Ribbon toolbar */}
       <div className="editor__toolbar" role="toolbar" aria-label="Editor toolbar">
-        <div className="editor__toolbar-group">
-          {formattingButtons.map((button) => {
-            const Icon = button.icon;
-
-            return (
-              <button
-                key={button.id}
-                type="button"
-                className={`editor__tool${button.active ? " editor__tool--active" : ""}`}
-                aria-label={button.label}
-                aria-pressed={button.active}
-                onClick={button.onClick}
-              >
-                <Icon size={16} strokeWidth={2.1} />
-                <span>{button.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="editor__toolbar-group">
-          {tableButtons.map((button) => {
-            const Icon = button.icon;
-
-            return (
-              <button
-                key={button.id}
-                type="button"
-                className="editor__tool"
-                aria-label={button.label}
-                aria-disabled={button.disabled}
-                disabled={button.disabled}
-                onClick={button.onClick}
-              >
-                <Icon size={16} strokeWidth={2.1} />
-                <span>{button.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="editor__toolbar-group editor__toolbar-group--file">
-          {fileButtons.map((button) => {
-            const Icon = button.icon;
-
-            return (
-              <button
-                key={button.id}
-                type="button"
-                className="editor__tool editor__tool--file"
-                aria-label={button.label}
-                onClick={button.onClick}
-              >
-                <Icon size={16} strokeWidth={2.1} />
-                <span>{button.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {renderRibbonGroup("File", fileGroup)}
+        {renderRibbonGroup("Format", formatGroup)}
+        {renderRibbonGroup("Align", alignGroup)}
+        {renderRibbonGroup("Insert", insertGroup)}
+        {renderRibbonGroup("Table", tableGroup)}
+        {renderRibbonGroup("Export", exportGroup)}
       </div>
-      <div className="editor__workspace">
-        <OutlineSidebar
-          activeId={activeOutlineId}
-          items={outlineTree}
-          onSelect={handleOutlineSelect}
-        />
+
+      {/* Workspace */}
+      <div className="editor__workspace" ref={workspaceRef}>
+        <div style={{ width: sidebarWidth, flexShrink: 0 }}>
+          <OutlineSidebar activeId={activeOutlineId} items={outlineTree} onSelect={handleOutlineSelect} />
+        </div>
+        <div ref={resizerRef} className={`editor__resizer${isDragging ? " editor__resizer--dragging" : ""}`} onMouseDown={handleResizerMouseDown} />
         <div ref={mountRef} className="editor__mount" />
       </div>
+
+      {/* Shortcut bar */}
+      <div className="editor__shortcuts">
+        {shortcutGroups.map((group) => (
+          <div key={group.label} className="editor__shortcut-group">
+            <span className="editor__shortcut-group-label">{group.label}</span>
+            {group.items.map((item) => (
+              <span key={item.desc} className="editor__shortcut-item">
+                {item.keys.map((k, i) => (
+                  <span key={i}>
+                    <span className="editor__shortcut-kbd">{k}</span>
+                    {i < item.keys.length - 1 && <span className="editor__shortcut-label">+</span>}
+                  </span>
+                ))}
+                <span className="editor__shortcut-label">{item.desc}</span>
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+
       {showImageUpload && (
-        <ImageUpload
-          onInsert={handleImageInsert}
-          onClose={() => setShowImageUpload(false)}
-        />
+        <ImageUpload onInsert={handleImageInsert} onClose={() => setShowImageUpload(false)} />
       )}
     </section>
   );
