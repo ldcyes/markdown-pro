@@ -195,6 +195,32 @@ body {
   text-overflow: ellipsis;
 }
 
+.editor__menubar-filename-input {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--editor-label);
+  background: transparent;
+  border: 1px solid var(--tool-active-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  outline: none;
+  width: 140px;
+  font-family: inherit;
+}
+
+.editor__tab-rename-input {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tool-text);
+  background: transparent;
+  border: 1px solid var(--tool-active-border);
+  border-radius: 3px;
+  padding: 0 4px;
+  outline: none;
+  width: 100px;
+  font-family: inherit;
+}
+
 /* ─── Tab bar ─── */
 .editor__tabs {
   display: flex;
@@ -204,12 +230,8 @@ body {
   background: var(--editor-meta-bg);
   border-bottom: 1px solid var(--editor-meta-border);
   flex-shrink: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.editor__tabs::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  overflow: hidden;
 }
 
 .editor__tab {
@@ -323,14 +345,14 @@ body {
 /* ─── Ribbon Toolbar (Word-style) ─── */
 .editor__toolbar {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 2px;
   align-items: stretch;
   padding: 6px 10px;
   border-bottom: 1px solid var(--toolbar-border);
   background: var(--toolbar-bg);
   flex-shrink: 0;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .editor__ribbon-group {
@@ -344,6 +366,35 @@ body {
 
 .editor__ribbon-group:last-child {
   border-right: none;
+}
+
+/* Compact dropdown groups (responsive toolbar) */
+.editor__ribbon-group--compact {
+  position: relative;
+}
+
+.editor__dropdown-trigger {
+  min-width: 64px;
+}
+
+.editor__dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--tool-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 180px;
+}
+
+.dark .editor__dropdown-menu {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 .editor__ribbon-group-label {
@@ -581,7 +632,8 @@ body {
 
 .editor__surface h1,
 .editor__surface h2,
-.editor__surface h3 {
+.editor__surface h3,
+.editor__surface h4 {
   margin: 1.4em 0 0.5em;
   line-height: 1.15;
 }
@@ -596,6 +648,10 @@ body {
 
 .editor__surface h3 {
   font-size: 1.3rem;
+}
+
+.editor__surface h4 {
+  font-size: 1.1rem;
 }
 
 .editor__surface p,
@@ -748,8 +804,9 @@ body {
 /* ─── Table styles ─── */
 .editor__surface table {
   border-collapse: collapse;
-  width: 100%;
-  margin: 1em 0;
+  width: max-content;
+  max-width: 100%;
+  margin: 1em auto;
   table-layout: auto;
 }
 
@@ -785,14 +842,14 @@ body {
 /* ─── Shortcut Bar (bottom) ─── */
 .editor__shortcuts {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0;
   align-items: center;
   padding: 6px 14px;
   border-top: 1px solid var(--shortcut-border);
   background: var(--shortcut-bg);
   flex-shrink: 0;
-  overflow-x: auto;
+  overflow: hidden;
   font-size: 0.72rem;
 }
 
@@ -878,7 +935,6 @@ body {
 
   .editor__toolbar {
     padding: 4px 8px;
-    overflow-x: auto;
   }
 
   .editor__surface {

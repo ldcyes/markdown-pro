@@ -369,6 +369,55 @@ export async function exportToDocx(
   saveAs(buffer, `${baseName}.docx`);
 }
 
+export async function saveMarkdownFileWithPicker(
+  content: string,
+  suggestedName = "untitled.md",
+): Promise<{ handle: unknown; fileName: string } | "downloaded" | null> {
+  if (typeof window === "undefined" || !("showSaveFilePicker" in window)) {
+    downloadMarkdownFile(content, suggestedName);
+    return "downloaded";
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handle = await (window as any).showSaveFilePicker({
+      suggestedName: normalizeMarkdownFilename(suggestedName),
+      types: [
+        {
+          description: "Markdown files",
+          accept: { "text/markdown": [".md", ".markdown"] },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return { handle, fileName: handle.name };
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return null;
+    }
+    downloadMarkdownFile(content, suggestedName);
+    return "downloaded";
+  }
+}
+
+export async function saveMarkdownFileWithHandle(
+  content: string,
+  handle: unknown,
+): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const h = handle as any;
+    const writable = await h.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) {
     return "0 B";

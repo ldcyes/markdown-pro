@@ -13,6 +13,7 @@ type Command = (
 export interface ActiveToolbarState {
   bold: boolean;
   bulletList: boolean;
+  cellAlign: string | null;
   orderedList: boolean;
   codeBlock: boolean;
   headingLevel: number | null;
@@ -146,7 +147,7 @@ export const insertTable: Command = (state, dispatch) => {
 export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
   let headingLevel: number | null = null;
 
-  for (let level = 1; level <= 3; level += 1) {
+  for (let level = 1; level <= 4; level += 1) {
     if (isNodeActive(state, "heading", { level })) {
       headingLevel = level;
       break;
@@ -164,9 +165,22 @@ export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
     }
   }
 
+  // Detect table cell alignment
+  let cellAlign: string | null = null;
+  if (isInTable(state)) {
+    for (let depth = $alignFrom.depth; depth > 0; depth -= 1) {
+      const node = $alignFrom.node(depth);
+      if (node.type.name === "table_cell" || node.type.name === "table_header") {
+        cellAlign = (node.attrs.align as string) || null;
+        break;
+      }
+    }
+  }
+
   return {
     bold: isMarkActive(state, "strong"),
     bulletList: isNodeActive(state, "bullet_list"),
+    cellAlign,
     orderedList: isNodeActive(state, "ordered_list"),
     codeBlock: isNodeActive(state, "code_block"),
     headingLevel,

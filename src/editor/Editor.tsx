@@ -10,6 +10,7 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  ChevronDown,
   Columns3,
   Code2,
   FileDown,
@@ -19,6 +20,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
   Image as ImageIcon,
   Italic,
   List,
@@ -57,6 +59,7 @@ import {
   addColumnBefore,
   addRowAfter,
   addRowBefore,
+  columnResizing,
   deleteColumn,
   deleteRow,
   goToNextCell,
@@ -84,6 +87,8 @@ import {
   openMarkdownFile,
   saveDraftToLocalStorage,
   saveDraftToLocalStorageWithKey,
+  saveMarkdownFileWithHandle,
+  saveMarkdownFileWithPicker,
 } from "../utils/fileSystem.js";
 import { DEFAULT_MARKDOWN } from "./defaultMarkdown";
 import {
@@ -139,6 +144,7 @@ interface TabState {
   savedContent: string;
   updatedAt: number;
   editorStateJSON: unknown | null; // JSON snapshot of ProseMirror state for restoring undo history
+  fileHandle: unknown | null; // FileSystemFileHandle for saving to disk
 }
 
 let tabIdCounter = 0;
@@ -237,6 +243,7 @@ function createEditorState(markdownSource: string) {
         "Mod-Alt-1": setBlockType(heading, { level: 1 }),
         "Mod-Alt-2": setBlockType(heading, { level: 2 }),
         "Mod-Alt-3": setBlockType(heading, { level: 3 }),
+        "Mod-Alt-4": setBlockType(heading, { level: 4 }),
         "Shift-Ctrl-8": wrapInList(bullet_list),
         "Shift-Ctrl-9": wrapInList(ordered_list),
         "Shift-Ctrl-\\": setBlockType(code_block),
@@ -244,6 +251,7 @@ function createEditorState(markdownSource: string) {
         Tab: chainCommands(goToNextCell(1), sinkListItem(list_item)),
         "Shift-Tab": chainCommands(goToNextCell(-1), liftListItem(list_item)),
       }),
+      columnResizing(),
       tableEditing(),
       codeHighlightPlugin(),
       trailingParagraphPlugin(),
@@ -291,6 +299,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
       savedContent: content,
       updatedAt: draft?.updatedAt ?? 0,
       editorStateJSON: null,
+      fileHandle: null,
     }];
   });
   const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
@@ -301,6 +310,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   });
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
 
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -321,6 +331,9 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const resizerRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [compactToolbar, setCompactToolbar] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const updateActiveTab = useCallback(
     (patch: Partial<TabState>) => {
@@ -377,7 +390,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     const content = DEFAULT_MARKDOWN;
     setTabs((prev) => [
       ...prev,
-      { id, fileName: "untitled.md", content, savedContent: content, updatedAt: 0, editorStateJSON: null },
+      { id, fileName: "untitled.md", content, savedContent: content, updatedAt: 0, editorStateJSON: null, fileHandle: null },
     ]);
     setActiveTabId(id);
   });
@@ -453,15 +466,39 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     const id = nextTabId();
     setTabs((prev) => [
       ...prev,
-      { id, fileName: nextFile.fileName, content: nextFile.content, savedContent: nextFile.content, updatedAt: Date.now(), editorStateJSON: null },
+      { id, fileName: nextFile.fileName, content: nextFile.content, savedContent: nextFile.content, updatedAt: Date.now(), editorStateJSON: null, fileHandle: null },
     ]);
     setActiveTabId(id);
   });
 
-  const handleSaveFile = useEffectEvent(() => {
-    downloadMarkdownFile(activeTab.content, activeTab.fileName);
-    updateActiveTab({ savedContent: activeTab.content });
-    setStatusMessage(`Downloaded ${normalizeMarkdownFilename(activeTab.fileName)}`);
+  const handleSaveFile = useEffectEvent(async () => {
+    if (activeTab.fileHandle) {
+      const ok = await saveMarkdownFileWithHandle(activeTab.content, activeTab.fileHandle);
+      if (ok) {
+        updateActiveTab({ savedContent: activeTab.content });
+        setStatusMessage(`Saved ${normalizeMarkdownFilename(activeTab.fileName)}`);
+      }
+    } else {
+      const result = await saveMarkdownFileWithPicker(activeTab.content, activeTab.fileName);
+      if (result === "downloaded") {
+        updateActiveTab({ savedContent: activeTab.content });
+        setStatusMessage(`Downloaded ${normalizeMarkdownFilename(activeTab.fileName)}`);
+      } else if (result) {
+        updateActiveTab({ savedContent: activeTab.content, fileHandle: result.handle, fileName: result.fileName });
+        setStatusMessage(`Saved ${normalizeMarkdownFilename(result.fileName)}`);
+      }
+    }
+  });
+
+  const handleSaveAsFile = useEffectEvent(async () => {
+    const result = await saveMarkdownFileWithPicker(activeTab.content, activeTab.fileName);
+    if (result === "downloaded") {
+      updateActiveTab({ savedContent: activeTab.content });
+      setStatusMessage(`Downloaded ${normalizeMarkdownFilename(activeTab.fileName)}`);
+    } else if (result) {
+      updateActiveTab({ savedContent: activeTab.content, fileHandle: result.handle, fileName: result.fileName });
+      setStatusMessage(`Saved as ${normalizeMarkdownFilename(result.fileName)}`);
+    }
   });
 
   const handleExportPdf = useEffectEvent(() => {
@@ -601,6 +638,29 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [tabs]);
 
+  // Responsive toolbar: compact mode when toolbar is too narrow
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) => {
+      setCompactToolbar(entry.contentRect.width < 860);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Close open dropdown when clicking outside the toolbar
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openDropdown]);
+
   const { strong, em } = editorSchema.marks;
   const { heading, code_block } = editorSchema.nodes;
   const documentSize = new Blob([activeTab.content]).size;
@@ -611,7 +671,8 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const fileGroup: ToolButton[] = [
     { icon: FilePlus2, id: "new-tab", label: "New", onClick: handleNewTab },
     { icon: FolderOpen, id: "open-file", label: "Open", onClick: () => { void handleOpenFile(); } },
-    { icon: Save, id: "save-file", label: "Save", variant: "file", onClick: handleSaveFile },
+    { icon: Save, id: "save-file", label: "Save", variant: "file", onClick: () => { void handleSaveFile(); } },
+    { icon: SaveAll, id: "save-as-file", label: "Save As", onClick: () => { void handleSaveAsFile(); } },
   ];
 
   const formatGroup: ToolButton[] = [
@@ -620,6 +681,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     { active: activeToolbarState.headingLevel === 1, icon: Heading1, id: "h1", label: "H1", onClick: () => runEditorCommand(setBlockType(heading, { level: 1 })) },
     { active: activeToolbarState.headingLevel === 2, icon: Heading2, id: "h2", label: "H2", onClick: () => runEditorCommand(setBlockType(heading, { level: 2 })) },
     { active: activeToolbarState.headingLevel === 3, icon: Heading3, id: "h3", label: "H3", onClick: () => runEditorCommand(setBlockType(heading, { level: 3 })) },
+    { active: activeToolbarState.headingLevel === 4, icon: Heading4, id: "h4", label: "H4", onClick: () => runEditorCommand(setBlockType(heading, { level: 4 })) },
   ];
 
   const alignGroup: ToolButton[] = [
@@ -670,13 +732,51 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     );
   }
 
+  function renderCompactDropdown(label: string, id: string, buttons: ToolButton[]) {
+    const isOpen = openDropdown === id;
+    return (
+      <div className="editor__ribbon-group editor__ribbon-group--compact">
+        <div className="editor__ribbon-buttons">
+          <button
+            type="button"
+            className={`editor__tool editor__dropdown-trigger${isOpen ? " editor__tool--active" : ""}`}
+            aria-label={label}
+            aria-expanded={isOpen}
+            onClick={() => setOpenDropdown(isOpen ? null : id)}
+          >
+            <ChevronDown size={13} strokeWidth={2} />
+            <span>{label}</span>
+          </button>
+        </div>
+        <span className="editor__ribbon-group-label">{label}</span>
+        {isOpen && (
+          <div className="editor__dropdown-menu">
+            {buttons.map((btn) => {
+              const Icon = btn.icon;
+              const cls = ["editor__tool", btn.active ? "editor__tool--active" : "", btn.variant === "file" ? "editor__tool--file" : ""].filter(Boolean).join(" ");
+              return (
+                <button
+                  key={btn.id} type="button" className={cls} aria-label={btn.label}
+                  aria-pressed={btn.active} disabled={btn.disabled}
+                  onClick={() => { btn.onClick(); setOpenDropdown(null); }}
+                >
+                  <Icon size={15} strokeWidth={2} /><span>{btn.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const shortcutGroups = [
     { label: "File", items: [{ keys: [modKey, "S"], desc: "Save" }] },
     { label: "Edit", items: [{ keys: [modKey, "Z"], desc: "Undo" }, { keys: [modKey, "Y"], desc: "Redo" }] },
     { label: "Format", items: [{ keys: [modKey, "B"], desc: "Bold" }, { keys: [modKey, "I"], desc: "Italic" }] },
-    { label: "Heading", items: [{ keys: [modKey, "Alt", "1-3"], desc: "H1-H3" }] },
-    { label: "List", items: [{ keys: ["Shift", "Ctrl", "8"], desc: "Bullet" }] },
-    { label: "Table", items: [{ keys: ["Tab"], desc: "Next" }, { keys: ["Shift", "Tab"], desc: "Prev" }] },
+    { label: "Heading", items: [{ keys: [modKey, "Alt", "1-4"], desc: "H1-H4" }] },
+    { label: "List", items: [{ keys: ["Tab"], desc: "Indent" }, { keys: ["Shift", "Tab"], desc: "Dedent" }] },
+    { label: "Table", items: [{ keys: ["Tab"], desc: "Next cell" }] },
   ];
 
   const isDirtyTab = activeTab.content !== activeTab.savedContent;
@@ -693,7 +793,33 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
             <Redo2 size={14} strokeWidth={2} /><span>Redo</span>
           </button>
           <span className="editor__menubar-sep" />
-          <span className="editor__menubar-filename">{activeTab.fileName}</span>
+          {renamingTabId === activeTabId ? (
+            <input
+              className="editor__menubar-filename-input"
+              defaultValue={activeTab.fileName.replace(/\.(md|markdown)$/i, "")}
+              autoFocus
+              onBlur={(e) => {
+                const newName = normalizeMarkdownFilename(e.currentTarget.value);
+                updateActiveTab({ fileName: newName });
+                setRenamingTabId(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
+                  setRenamingTabId(null);
+                }
+              }}
+            />
+          ) : (
+            <span
+              className="editor__menubar-filename"
+              onDoubleClick={() => setRenamingTabId(activeTabId)}
+              title="Double-click to rename"
+            >
+              {isDirtyTab ? `${activeTab.fileName} *` : activeTab.fileName}
+            </span>
+          )}
           <span className="editor__menubar-hint">
             {statusMessage}
             {` \u2022 ${formatFileSize(documentSize)}`}
@@ -722,7 +848,29 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
             <div key={tab.id} className={`editor__tab${isActive ? " editor__tab--active" : ""}`} onClick={() => switchToTab(tab.id)}>
               <span className="editor__tab-name">
                 {isDirty && <span className="editor__tab-dot" title="Unsaved changes" />}
-                {tab.fileName}
+                {renamingTabId === tab.id ? (
+                  <input
+                    className="editor__tab-rename-input"
+                    defaultValue={tab.fileName.replace(/\.(md|markdown)$/i, "")}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => {
+                      const newName = normalizeMarkdownFilename(e.currentTarget.value);
+                      setTabs((prev) => prev.map((t) => t.id === tab.id ? { ...t, fileName: newName } : t));
+                      setRenamingTabId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                      } else if (e.key === "Escape") {
+                        setRenamingTabId(null);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span onDoubleClick={(e) => { e.stopPropagation(); setRenamingTabId(tab.id); }}>{tab.fileName}{isDirty && " *"}</span>
+                )}
               </span>
               <button type="button" className="editor__tab-close" aria-label={`Close ${tab.fileName}`}
                 onClick={(e) => { e.stopPropagation(); handleCloseTab(tab.id); }}>
@@ -737,13 +885,13 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
       </div>
 
       {/* Ribbon toolbar */}
-      <div className="editor__toolbar" role="toolbar" aria-label="Editor toolbar">
-        {renderRibbonGroup("File", fileGroup)}
+      <div className="editor__toolbar" ref={toolbarRef} role="toolbar" aria-label="Editor toolbar">
+        {renderCompactDropdown("File", "file", fileGroup)}
         {renderRibbonGroup("Format", formatGroup)}
         {renderRibbonGroup("Align", alignGroup)}
-        {renderRibbonGroup("Insert", insertGroup)}
-        {renderRibbonGroup("Table", tableGroup)}
-        {renderRibbonGroup("Export", exportGroup)}
+        {compactToolbar ? renderCompactDropdown("Insert", "insert", insertGroup) : renderRibbonGroup("Insert", insertGroup)}
+        {compactToolbar ? renderCompactDropdown("Table", "table", tableGroup) : renderRibbonGroup("Table", tableGroup)}
+        {compactToolbar ? renderCompactDropdown("Export", "export", exportGroup) : renderRibbonGroup("Export", exportGroup)}
       </div>
 
       {/* Workspace */}
