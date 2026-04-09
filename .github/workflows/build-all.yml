@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-web:
+  build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,17 +23,43 @@ jobs:
         with:
           version: 9
 
-      - name: Install dependencies
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;27.0.11902837"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.0.11902837" >> $GITHUB_ENV
+
+      - name: Install Rust stable with Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Build Web
-        run: pnpm build
+      - name: Initialize Android project
+        run: pnpm tauri android init
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
 
-      - name: Upload Web artifacts
+      - name: Build Android APK
+        run: pnpm tauri android build --apk
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: web-build
-          path: dist/
+          name: android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
 
   build-tauri:
     strategy:
@@ -115,7 +141,7 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
 
   release:
-    needs: [build-web, build-tauri]
+    needs: [build-android, build-tauri]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -149,12 +175,13 @@ jobs:
             | Windows | `.msi` installer or `.exe` (NSIS) |
             | macOS | `.dmg` |
             | Linux | `.deb` or `.AppImage` |
+            | Android | `.apk` |
           draft: false
           prerelease: false
           files: |
             windows-installer/**
             macos-dmg/**
             linux-packages/**
-            web-build/**
+            android-apk/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
