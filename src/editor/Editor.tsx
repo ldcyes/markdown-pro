@@ -845,7 +845,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
           const isActive = tab.id === activeTabId;
           const isDirty = tab.content !== tab.savedContent;
           return (
-            <div key={tab.id} className={`editor__tab${isActive ? " editor__tab--active" : ""}`} onClick={() => switchToTab(tab.id)}>
+            <div key={tab.id} className={`editor__tab${isActive ? " editor__tab--active" : ""}`} onClick={(e) => { if (renamingTabId !== tab.id) switchToTab(tab.id); }}>
               <span className="editor__tab-name">
                 {isDirty && <span className="editor__tab-dot" title="Unsaved changes" />}
                 {renamingTabId === tab.id ? (
