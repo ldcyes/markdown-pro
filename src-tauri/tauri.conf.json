@@ -16,7 +16,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "longDescription": "A Typora-style WYSIWYG Markdown editor with LaTeX and Mermaid support",
+    "longDescription": "A WYSIWYG Markdown editor with LaTeX and Mermaid support",
     "shortDescription": "Markdown Pro Editor",
     "targets": "all",
     "macOS": {
