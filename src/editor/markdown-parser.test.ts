@@ -27,11 +27,12 @@ test("markdownToProseMirror parses headings, marks, lists, and code blocks", () 
     content: [
       {
         type: "heading",
-        attrs: { level: 1 },
+        attrs: { level: 1, align: null },
         content: [{ type: "text", text: "Markdown Pro" }],
       },
       {
         type: "paragraph",
+        attrs: { align: null },
         content: [
           { type: "text", text: "Paragraph with " },
           {
@@ -56,6 +57,7 @@ test("markdownToProseMirror parses headings, marks, lists, and code blocks", () 
             content: [
               {
                 type: "paragraph",
+                attrs: { align: null },
                 content: [{ type: "text", text: "Ship parser" }],
               },
             ],
@@ -65,6 +67,7 @@ test("markdownToProseMirror parses headings, marks, lists, and code blocks", () 
             content: [
               {
                 type: "paragraph",
+                attrs: { align: null },
                 content: [{ type: "text", text: "Ship toolbar" }],
               },
             ],
@@ -108,6 +111,7 @@ test("markdownToProseMirror parses GFM tables with alignment", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: { align: null },
                     content: [{ type: "text", text: "Feature" }],
                   },
                 ],
@@ -123,6 +127,7 @@ test("markdownToProseMirror parses GFM tables with alignment", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: { align: null },
                     content: [{ type: "text", text: "Status" }],
                   },
                 ],
@@ -138,6 +143,7 @@ test("markdownToProseMirror parses GFM tables with alignment", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: { align: null },
                     content: [{ type: "text", text: "Owner" }],
                   },
                 ],
@@ -158,6 +164,7 @@ test("markdownToProseMirror parses GFM tables with alignment", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: { align: null },
                     content: [{ type: "text", text: "Parser" }],
                   },
                 ],
@@ -173,6 +180,7 @@ test("markdownToProseMirror parses GFM tables with alignment", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: { align: null },
                     content: [{ type: "text", text: "Ready" }],
                   },
                 ],
@@ -188,6 +196,7 @@ test("markdownToProseMirror parses GFM tables with alignment", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: { align: null },
                     content: [{ type: "text", text: "Core" }],
                   },
                 ],

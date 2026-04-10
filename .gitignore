@@ -5,6 +5,8 @@ node_modules/
 # Build outputs
 dist/
 .tauri/target/
+src-tauri/gen/
+src-tauri/target/
 .temp-tests/
 
 # Environment

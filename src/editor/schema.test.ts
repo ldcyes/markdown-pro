@@ -20,6 +20,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Feature" }],
                   },
                 ],
@@ -29,6 +32,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Status" }],
                   },
                 ],
@@ -43,6 +49,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Tables" }],
                   },
                 ],
@@ -55,6 +64,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Ready" }],
                   },
                 ],
@@ -86,6 +98,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Feature" }],
                   },
                 ],
@@ -101,6 +116,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Status" }],
                   },
                 ],
@@ -121,6 +139,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Tables" }],
                   },
                 ],
@@ -136,6 +157,9 @@ test("editorSchema accepts valid table nodes", () => {
                 content: [
                   {
                     type: "paragraph",
+                    attrs: {
+                      align: null,
+                    },
                     content: [{ type: "text", text: "Ready" }],
                   },
                 ],

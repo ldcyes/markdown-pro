@@ -7,6 +7,7 @@ set -e
 
 PROJECT_NAME="Markdown Pro"
 VERSION="0.1.0"
+TARGET="x86_64-pc-windows-gnu"
 
 echo "🚀 开始构建 $PROJECT_NAME for Windows..."
 echo "=========================================="
@@ -60,25 +61,37 @@ fi
 # 清理旧构建
 echo ""
 echo "🧹 清理旧构建..."
-rm -rf src-tauri/target/x86_64-pc-windows-gnu/release/bundle 2>/dev/null || true
+rm -rf "src-tauri/target/$TARGET/release/bundle" 2>/dev/null || true
+rm -rf "src-tauri/target/$TARGET/debug/bundle" 2>/dev/null || true
 
 # 构建 Windows 应用
 echo ""
 echo "🔨 构建 Windows 应用..."
 
-if [ "$1" == "--release" ]; then
-    pnpm tauri build --target x86_64-pc-windows-gnu --release
-else
-    pnpm tauri build --target x86_64-pc-windows-gnu --debug
+BUILD_PROFILE="release"
+TAURI_ARGS=(build --target "$TARGET")
+
+if [ "$1" == "--debug" ]; then
+    BUILD_PROFILE="debug"
+    TAURI_ARGS+=(--debug)
 fi
+
+if [ "$(uname -s)" != "MINGW64_NT" ] && [ "$(uname -s)" != "MSYS_NT" ] && ! command -v makensis.exe &> /dev/null; then
+    echo "⚠️  未检测到 makensis.exe，当前主机将只生成 Windows 可执行文件，不打安装包"
+    TAURI_ARGS+=(--no-bundle)
+fi
+
+pnpm tauri "${TAURI_ARGS[@]}"
 
 # 检查构建结果
 echo ""
 echo "📊 检查构建结果..."
 
-BUNDLE_DIR="src-tauri/target/x86_64-pc-windows-gnu/release/bundle"
+OUTPUT_DIR="src-tauri/target/$TARGET/$BUILD_PROFILE"
+BUNDLE_DIR="$OUTPUT_DIR/bundle"
+EXECUTABLE_PATH="$OUTPUT_DIR/markdown-pro.exe"
 
-if [ -d "$BUNDLE_DIR/msi" ]; then
+if [ -d "$BUNDLE_DIR/msi" ] || [ -d "$BUNDLE_DIR/nsis" ]; then
     echo "✅ Windows 构建成功！"
     echo ""
     echo "📦 构建产物:"
@@ -91,6 +104,18 @@ if [ -d "$BUNDLE_DIR/msi" ]; then
     echo "📁 完整路径:"
     echo "  $(pwd)/$BUNDLE_DIR/msi/"
     echo "  $(pwd)/$BUNDLE_DIR/nsis/"
+elif [ -f "$EXECUTABLE_PATH" ]; then
+    echo "✅ Windows 可执行文件构建成功！"
+    echo ""
+    echo "📦 构建产物:"
+    ls -lh "$EXECUTABLE_PATH"
+    echo ""
+    echo "📝 说明:"
+    echo "  - 当前主机未提供 NSIS，因此跳过安装包打包"
+    echo "  - 可执行文件可在 Windows 上直接运行"
+    echo ""
+    echo "📁 完整路径:"
+    echo "  $(pwd)/$EXECUTABLE_PATH"
 else
     echo "❌ 构建失败"
     exit 1
