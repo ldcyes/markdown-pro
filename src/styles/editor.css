@@ -353,6 +353,8 @@ body {
   background: var(--toolbar-bg);
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+  z-index: 300;
 }
 
 .editor__ribbon-group {
@@ -381,7 +383,7 @@ body {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 200;
+  z-index: 400;
   background: var(--toolbar-bg);
   border: 1px solid var(--tool-border);
   border-radius: 6px;

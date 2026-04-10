@@ -17,6 +17,9 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
     writeStoredTheme(theme);
+    document.body.style.backgroundColor = theme === "dark" ? "#111827" : "#f8f5ef";
+    const root = document.getElementById("root");
+    if (root) root.style.backgroundColor = theme === "dark" ? "#111827" : "#f8f5ef";
   }, [theme]);
 
   return (

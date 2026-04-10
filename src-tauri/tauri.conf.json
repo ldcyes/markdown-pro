@@ -34,7 +34,8 @@
       "wix": {
         "language": "en-US"
       }
-    }
+    },
+    "android": {}
   },
   "productName": "Markdown Pro",
   "version": "0.2.0",

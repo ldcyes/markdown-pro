@@ -26,7 +26,6 @@ function renderOutlineItems(
           style={style}
           onClick={() => onSelect(item)}
         >
-          <span className="editor__outline-level">H{item.level}</span>
           <span>{item.text}</span>
         </button>
         {item.children.length > 0 ? (

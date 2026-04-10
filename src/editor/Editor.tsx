@@ -518,6 +518,27 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     setStatusMessage("Exported as Word");
   });
 
+  const handleGenerateToc = useEffectEvent(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const CHAR_PER_PAGE = 3000;
+    let pos = 0;
+    const tocLines: string[] = ["# Table of Contents", ""];
+    outlineItems.forEach((item) => {
+      const pageNum = Math.floor(item.position / CHAR_PER_PAGE) + 1;
+      const indent = "  ".repeat(Math.max(0, item.level - 1));
+      tocLines.push(`${indent}- ${item.text} ............ p.${pageNum}`);
+    });
+    tocLines.push("", "---", "");
+    const tocMd = tocLines.join("\n");
+    const tocDoc = markdownToProseMirror(tocMd);
+    // Insert at beginning of document
+    const tr = view.state.tr.insert(0, tocDoc.content);
+    view.dispatch(tr);
+    view.focus();
+    setStatusMessage("TOC generated");
+  });
+
   const runEditorCommand = useEffectEvent((command: Command) => {
     const view = viewRef.current;
     if (!view) return;
@@ -710,6 +731,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const exportGroup: ToolButton[] = [
     { icon: FileDown, id: "export-pdf", label: "PDF", onClick: handleExportPdf },
     { icon: FileText, id: "export-docx", label: "Word", onClick: handleExportDocx },
+    { icon: List, id: "gen-toc", label: "TOC", onClick: handleGenerateToc },
     { icon: Printer, id: "print", label: "Print", onClick: handlePrint },
   ];
 
