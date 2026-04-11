@@ -129,7 +129,7 @@ jobs:
       - name: Build iOS simulator app
         env:
           CI: 'true'
-        run: pnpm tauri ios build --target aarch64-sim --ci
+        run: pnpm tauri ios build --target aarch64-apple-ios-sim --ci
 
       - name: Package iOS simulator app
         run: |
