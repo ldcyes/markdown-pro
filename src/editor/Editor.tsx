@@ -867,14 +867,14 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
           const isActive = tab.id === activeTabId;
           const isDirty = tab.content !== tab.savedContent;
           return (
-            <div key={tab.id} className={`editor__tab${isActive ? " editor__tab--active" : ""}`} onClick={(e) => { if (renamingTabId !== tab.id) switchToTab(tab.id); }}>
+            <div key={tab.id} className={`editor__tab${isActive ? " editor__tab--active" : ""}`} onClick={(e) => { if (renamingTabId !== tab.id) switchToTab(tab.id); }} onDoubleClick={(e) => { e.stopPropagation(); e.preventDefault(); setRenamingTabId(tab.id); }}>
               <span className="editor__tab-name">
                 {isDirty && <span className="editor__tab-dot" title="Unsaved changes" />}
                 {renamingTabId === tab.id ? (
                   <input
                     className="editor__tab-rename-input"
                     defaultValue={tab.fileName.replace(/\.(md|markdown)$/i, "")}
-                    autoFocus
+                    ref={(el) => { if (el) { el.focus(); el.select(); } }}
                     onClick={(e) => e.stopPropagation()}
                     onDoubleClick={(e) => e.stopPropagation()}
                     onBlur={(e) => {
@@ -891,7 +891,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
                     }}
                   />
                 ) : (
-                  <span onDoubleClick={(e) => { e.stopPropagation(); setRenamingTabId(tab.id); }}>{tab.fileName}{isDirty && " *"}</span>
+                  <span>{tab.fileName}{isDirty && " *"}</span>
                 )}
               </span>
               <button type="button" className="editor__tab-close" aria-label={`Close ${tab.fileName}`}
