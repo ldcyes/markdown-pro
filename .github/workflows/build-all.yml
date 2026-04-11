@@ -35,6 +35,119 @@ jobs:
           name: web-build
           path: dist/
 
+  build-android:
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;27.0.12077973"
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> $GITHUB_ENV
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Initialize Android project
+        run: pnpm tauri android init --ci
+
+      - name: Build Android APKs
+        env:
+          CI: 'true'
+        run: pnpm tauri android build --apk --target aarch64 x86_64 --split-per-abi --ci
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+  build-ios:
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Install CocoaPods
+        run: brew install cocoapods
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Initialize iOS project
+        env:
+          CI: 'true'
+        run: pnpm tauri ios init --ci
+
+      - name: Build iOS simulator app
+        env:
+          CI: 'true'
+        run: pnpm tauri ios build --target aarch64-sim --ci
+
+      - name: Package iOS simulator app
+        run: |
+          APP_PATH=$(find src-tauri/gen/apple/build -type d -name '*.app' | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No iOS .app bundle found"
+            exit 1
+          fi
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json', 'utf8')).version")
+          mkdir -p dist-mobile
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "dist-mobile/Markdown.Pro_${VERSION}_ios_simulator.zip"
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator
+          path: dist-mobile/*.zip
+
   build-tauri:
     strategy:
       fail-fast: false
@@ -115,7 +228,7 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
 
   release:
-    needs: [build-web, build-tauri]
+    needs: [build-web, build-android, build-ios, build-tauri]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -149,9 +262,13 @@ jobs:
             | Windows | `.msi` installer or `.exe` (NSIS) |
             | macOS | `.dmg` |
             | Linux | `.deb` or `.AppImage` |
+            | Android | `.apk` |
+            | iOS | simulator `.zip` |
           draft: false
           prerelease: false
           files: |
+            android-apks/**
+            ios-simulator/**
             windows-installer/**
             macos-dmg/**
             linux-packages/**
