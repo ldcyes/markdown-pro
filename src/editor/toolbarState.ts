@@ -18,6 +18,7 @@ export interface ActiveToolbarState {
   codeBlock: boolean;
   headingLevel: number | null;
   italic: boolean;
+  paragraph: boolean;
   table: boolean;
   textAlign: string | null;
 }
@@ -185,6 +186,12 @@ export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
     codeBlock: isNodeActive(state, "code_block"),
     headingLevel,
     italic: isMarkActive(state, "em"),
+    paragraph:
+      !headingLevel &&
+      !isNodeActive(state, "bullet_list") &&
+      !isNodeActive(state, "ordered_list") &&
+      !isNodeActive(state, "code_block") &&
+      !isNodeActive(state, "table"),
     table: isInTable(state),
     textAlign,
   };

@@ -46,6 +46,7 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
+import { DOMSerializer, Fragment } from "prosemirror-model";
 import {
   liftListItem,
   sinkListItem,
@@ -132,6 +133,36 @@ type Command = (
   dispatch?: EditorView["dispatch"],
   view?: EditorView,
 ) => boolean;
+
+const clipboardSerializer = DOMSerializer.fromSchema(editorSchema);
+
+function serializeFragmentToClipboard(fragment: Fragment, event: ClipboardEvent) {
+  if (!event.clipboardData) {
+    return false;
+  }
+
+  const container = document.createElement("div");
+  container.appendChild(clipboardSerializer.serializeFragment(fragment));
+
+  event.clipboardData.setData("text/html", container.innerHTML);
+  event.clipboardData.setData("text/plain", container.innerText || container.textContent || "");
+  event.preventDefault();
+  return true;
+}
+
+function handleClipboardCopy(view: EditorView, event: ClipboardEvent, shouldCut = false) {
+  const slice = view.state.selection.content();
+  if (slice.size === 0) {
+    return false;
+  }
+
+  const copied = serializeFragmentToClipboard(slice.content, event);
+  if (copied && shouldCut) {
+    view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+  }
+
+  return copied;
+}
 
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 const modKey = isMac ? "\u2318" : "Ctrl";
@@ -278,6 +309,32 @@ function setTextAlign(align: string | null): Command {
     if (tr.docChanged && dispatch) {
       dispatch(tr);
     }
+    return true;
+  };
+}
+
+function setParagraphBlock(): Command {
+  return (state, dispatch) => {
+    const paragraph = editorSchema.nodes.paragraph;
+    const { from, to } = state.selection;
+    let tr = state.tr;
+
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type.name === "paragraph" || node.type.name === "heading") {
+        tr = tr.setNodeMarkup(pos, paragraph, {
+          align: (node.attrs.align as string | null) ?? null,
+        });
+      }
+    });
+
+    if (!tr.docChanged) {
+      return false;
+    }
+
+    if (dispatch) {
+      dispatch(tr.scrollIntoView());
+    }
+
     return true;
   };
 }
@@ -629,6 +686,8 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
         syncToolbarState(nextState);
       },
       handleDOMEvents: {
+        copy: (view, event) => handleClipboardCopy(view, event),
+        cut: (view, event) => handleClipboardCopy(view, event, true),
         paste: (view, event) => handleImagePaste(view, event),
         drop: (view, event) => handleImageDrop(view, event),
       },
@@ -699,6 +758,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const formatGroup: ToolButton[] = [
     { active: activeToolbarState.bold, icon: Bold, id: "bold", label: "Bold", onClick: () => runEditorCommand(toggleMark(strong)) },
     { active: activeToolbarState.italic, icon: Italic, id: "italic", label: "Italic", onClick: () => runEditorCommand(toggleMark(em)) },
+    { active: activeToolbarState.paragraph, icon: FileText, id: "paragraph", label: "正文", onClick: () => runEditorCommand(setParagraphBlock()) },
     { active: activeToolbarState.headingLevel === 1, icon: Heading1, id: "h1", label: "H1", onClick: () => runEditorCommand(setBlockType(heading, { level: 1 })) },
     { active: activeToolbarState.headingLevel === 2, icon: Heading2, id: "h2", label: "H2", onClick: () => runEditorCommand(setBlockType(heading, { level: 2 })) },
     { active: activeToolbarState.headingLevel === 3, icon: Heading3, id: "h3", label: "H3", onClick: () => runEditorCommand(setBlockType(heading, { level: 3 })) },

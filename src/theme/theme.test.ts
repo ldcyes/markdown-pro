@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getThemeChrome,
   persistTheme,
   resolveTheme,
   THEME_STORAGE_KEY,
@@ -35,4 +36,14 @@ test("persistTheme stores the current mode under the theme key", () => {
   persistTheme(storage, "dark");
 
   assert.equal(storage.getItem(THEME_STORAGE_KEY), "dark");
+});
+
+test("getThemeChrome returns matching browser and window colors", () => {
+  const light = getThemeChrome("light");
+  const dark = getThemeChrome("dark");
+
+  assert.equal(light.themeColor, "#f8f5ef");
+  assert.deepEqual(light.windowBackground, [248, 245, 239, 255]);
+  assert.equal(dark.themeColor, "#111827");
+  assert.deepEqual(dark.windowBackground, [17, 24, 39, 255]);
 });

@@ -3,6 +3,7 @@ import { Editor } from "./editor/Editor";
 import {
   applyTheme,
   getSystemPrefersDark,
+  getThemeChrome,
   readStoredTheme,
   resolveTheme,
   writeStoredTheme,
@@ -15,11 +16,28 @@ export default function App() {
   );
 
   useEffect(() => {
+    const chrome = getThemeChrome(theme);
     applyTheme(theme);
     writeStoredTheme(theme);
-    document.body.style.backgroundColor = theme === "dark" ? "#111827" : "#f8f5ef";
+    document.body.style.backgroundColor = chrome.documentBackground;
+    document.body.style.backgroundImage = chrome.documentBackgroundImage;
     const root = document.getElementById("root");
-    if (root) root.style.backgroundColor = theme === "dark" ? "#111827" : "#f8f5ef";
+    if (root) {
+      root.style.backgroundColor = chrome.documentBackground;
+      root.style.backgroundImage = chrome.documentBackgroundImage;
+    }
+
+    void import("@tauri-apps/api/window")
+      .then(({ getCurrentWindow }) => {
+        const window = getCurrentWindow();
+        return Promise.allSettled([
+          window.setTheme(theme),
+          window.setBackgroundColor(chrome.windowBackground),
+        ]);
+      })
+      .catch(() => {
+        // Browser builds do not expose Tauri window APIs.
+      });
   }, [theme]);
 
   return (

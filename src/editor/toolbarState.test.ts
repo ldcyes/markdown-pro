@@ -87,6 +87,31 @@ test("getActiveToolbarState reports the current heading level", () => {
   });
 
   assert.equal(getActiveToolbarState(state).headingLevel, 2);
+  assert.equal(getActiveToolbarState(state).paragraph, false);
+});
+
+test("getActiveToolbarState reports paragraph context for body text", () => {
+  const doc = editorSchema.nodeFromJSON({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        attrs: { align: "center" },
+        content: [{ type: "text", text: "Body copy" }],
+      },
+    ],
+  });
+
+  const state = EditorState.create({
+    schema: editorSchema,
+    doc,
+    selection: TextSelection.create(doc, 2),
+  });
+
+  const toolbarState = getActiveToolbarState(state);
+  assert.equal(toolbarState.paragraph, true);
+  assert.equal(toolbarState.headingLevel, null);
+  assert.equal(toolbarState.textAlign, "center");
 });
 
 test("getActiveToolbarState reports list and code block context", () => {

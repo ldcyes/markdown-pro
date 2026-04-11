@@ -1,10 +1,11 @@
+import { TextSelection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { editorSchema } from "./schema.js";
 
 export function insertImage(
   view: EditorView,
   src: string,
   alt?: string,
+  position?: number,
   width?: number,
   height?: number,
 ) {
@@ -17,9 +18,33 @@ export function insertImage(
     height: height || null,
   });
 
-  const transaction = view.state.tr.replaceSelectionWith(imageNode);
+  let transaction = view.state.tr;
+  if (typeof position === "number") {
+    const insertPos = Math.max(0, Math.min(position, view.state.doc.content.size));
+    transaction = transaction.setSelection(
+      TextSelection.create(view.state.doc, insertPos),
+    );
+  }
+
+  transaction = transaction.replaceSelectionWith(imageNode).scrollIntoView();
   view.dispatch(transaction);
   view.focus();
+}
+
+function getDropPosition(view: EditorView, event: DragEvent) {
+  const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+  return coords?.pos;
+}
+
+function readImageFile(file: File, onLoad: (dataUrl: string) => void) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = reader.result;
+    if (typeof result === "string") {
+      onLoad(result);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 export function handleImagePaste(
@@ -35,12 +60,9 @@ export function handleImagePaste(
     if (item.type.startsWith("image/")) {
       const file = item.getAsFile();
       if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
+        readImageFile(file, (dataUrl) => {
           insertImage(view, dataUrl, file.name);
-        };
-        reader.readAsDataURL(file);
+        });
         return true;
       }
     }
@@ -58,17 +80,19 @@ export function handleImageDrop(
     return false;
   }
 
-  const file = files[0];
-  if (!file.type.startsWith("image/")) {
+  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  if (imageFiles.length === 0) {
     return false;
   }
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    const dataUrl = reader.result as string;
-    insertImage(view, dataUrl, file.name);
-  };
-  reader.readAsDataURL(file);
+  const dropPosition = getDropPosition(view, event);
+
+  imageFiles.forEach((file, index) => {
+    readImageFile(file, (dataUrl) => {
+      const position = typeof dropPosition === "number" ? dropPosition + index : undefined;
+      insertImage(view, dataUrl, file.name, position);
+    });
+  });
 
   return true;
 }

@@ -1,6 +1,6 @@
 [package]
 name = "markdown-pro"
-version = "0.2.2"
+version = "0.2.3"
 description = "A Typora-style Markdown editor"
 authors = ["Dacheng Liang <liangdacheng603@gmail.com>"]
 license = "MIT"

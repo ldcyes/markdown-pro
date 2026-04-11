@@ -1,4 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
+import { NodeSelection } from "prosemirror-state";
 import type { EditorView, NodeView } from "prosemirror-view";
 
 /**
@@ -15,6 +16,32 @@ export class ImageResizeView implements NodeView {
   private aspectRatio = 1;
   private readonly view: EditorView;
   private readonly getPos: () => number | undefined;
+  private readonly onSelectNode = (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest(".image-resize-handle, .image-crop-handle")) {
+      return;
+    }
+
+    const pos = this.getPos();
+    if (pos == null) {
+      return;
+    }
+
+    const { state } = this.view;
+    const selection = state.selection;
+    if (selection instanceof NodeSelection && selection.from === pos) {
+      return;
+    }
+
+    this.view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
+  };
+  private readonly onDragStart = (event: DragEvent) => {
+    this.onSelectNode(event as unknown as MouseEvent);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "copyMove";
+      event.dataTransfer.setData("text/plain", this.img.alt || this.img.src);
+    }
+  };
 
   constructor(node: ProseMirrorNode, view: EditorView, getPos: () => number | undefined) {
     this.view = view;
@@ -24,6 +51,9 @@ export class ImageResizeView implements NodeView {
     this.dom = document.createElement("span");
     this.dom.classList.add("image-resize-wrapper");
     this.dom.contentEditable = "false";
+    this.dom.draggable = true;
+    this.dom.addEventListener("mousedown", this.onSelectNode);
+    this.dom.addEventListener("dragstart", this.onDragStart);
 
     // Image
     this.img = document.createElement("img");
@@ -216,8 +246,17 @@ export class ImageResizeView implements NodeView {
     return true;
   }
 
-  stopEvent() {
-    return true;
+  selectNode() {
+    this.dom.classList.add("ProseMirror-selectednode");
+  }
+
+  deselectNode() {
+    this.dom.classList.remove("ProseMirror-selectednode");
+  }
+
+  stopEvent(event: Event) {
+    const target = event.target as HTMLElement | null;
+    return Boolean(target?.closest(".image-resize-handle, .image-crop-handle"));
   }
 
   ignoreMutation() {
@@ -225,6 +264,8 @@ export class ImageResizeView implements NodeView {
   }
 
   destroy() {
+    this.dom.removeEventListener("mousedown", this.onSelectNode);
+    this.dom.removeEventListener("dragstart", this.onDragStart);
     this.handle.removeEventListener("mousedown", this.onMouseDown);
     this.cropHandleX.removeEventListener("mousedown", this.onCropX);
     this.cropHandleY.removeEventListener("mousedown", this.onCropY);

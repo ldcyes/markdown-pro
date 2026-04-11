@@ -750,6 +750,16 @@ body {
   max-width: 100%;
   line-height: 0;
   vertical-align: bottom;
+  cursor: grab;
+}
+
+.image-resize-wrapper.ProseMirror-selectednode {
+  box-shadow: 0 0 0 3px var(--outline-accent);
+  border-radius: 8px;
+}
+
+.image-resize-wrapper.ProseMirror-selectednode img {
+  box-shadow: none;
 }
 
 .image-resize-wrapper img {
@@ -757,6 +767,10 @@ body {
   max-width: 100%;
   height: auto;
   border-radius: 6px;
+}
+
+.image-resize-wrapper:active {
+  cursor: grabbing;
 }
 
 .image-resize-handle {
