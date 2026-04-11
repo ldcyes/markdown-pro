@@ -29,11 +29,16 @@ export default function App() {
 
     void import("@tauri-apps/api/window")
       .then(({ getCurrentWindow }) => {
-        const window = getCurrentWindow();
-        return Promise.allSettled([
-          window.setTheme(theme),
-          window.setBackgroundColor(chrome.windowBackground),
-        ]);
+        const currentWindow = getCurrentWindow() as ReturnType<typeof getCurrentWindow> & {
+          setBackgroundColor?: (color: [number, number, number, number]) => Promise<void>;
+        };
+
+        const updates: Promise<unknown>[] = [currentWindow.setTheme(theme)];
+        if (typeof currentWindow.setBackgroundColor === "function") {
+          updates.push(currentWindow.setBackgroundColor(chrome.windowBackground));
+        }
+
+        return Promise.allSettled(updates);
       })
       .catch(() => {
         // Browser builds do not expose Tauri window APIs.
