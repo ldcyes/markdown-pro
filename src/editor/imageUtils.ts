@@ -1,6 +1,31 @@
 import { TextSelection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 
+const IMAGE_FILE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "bmp",
+  "webp",
+  "svg",
+  "ico",
+  "tif",
+  "tiff",
+  "avif",
+  "heic",
+  "heif",
+]);
+
+export function isLikelyImageFile(file: Pick<File, "name" | "type">): boolean {
+  if (file.type.startsWith("image/")) {
+    return true;
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  return Boolean(extension && IMAGE_FILE_EXTENSIONS.has(extension));
+}
+
 export function insertImage(
   view: EditorView,
   src: string,
@@ -80,7 +105,7 @@ export function handleImageDrop(
     return false;
   }
 
-  const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  const imageFiles = Array.from(files).filter((file) => isLikelyImageFile(file));
   if (imageFiles.length === 0) {
     return false;
   }

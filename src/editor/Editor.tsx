@@ -758,7 +758,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   const formatGroup: ToolButton[] = [
     { active: activeToolbarState.bold, icon: Bold, id: "bold", label: "Bold", onClick: () => runEditorCommand(toggleMark(strong)) },
     { active: activeToolbarState.italic, icon: Italic, id: "italic", label: "Italic", onClick: () => runEditorCommand(toggleMark(em)) },
-    { active: activeToolbarState.paragraph, icon: FileText, id: "paragraph", label: "正文", onClick: () => runEditorCommand(setParagraphBlock()) },
+    { active: activeToolbarState.paragraph, icon: FileText, id: "paragraph", label: "Body", onClick: () => runEditorCommand(setParagraphBlock()) },
     { active: activeToolbarState.headingLevel === 1, icon: Heading1, id: "h1", label: "H1", onClick: () => runEditorCommand(setBlockType(heading, { level: 1 })) },
     { active: activeToolbarState.headingLevel === 2, icon: Heading2, id: "h2", label: "H2", onClick: () => runEditorCommand(setBlockType(heading, { level: 2 })) },
     { active: activeToolbarState.headingLevel === 3, icon: Heading3, id: "h3", label: "H3", onClick: () => runEditorCommand(setBlockType(heading, { level: 3 })) },
