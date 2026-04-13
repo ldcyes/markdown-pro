@@ -310,6 +310,130 @@
     .str { color: #98c379; }
     .num { color: #d19a66; }
 
+    /* ── MENU BAR ── */
+    .preview-menubar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(20, 27, 44, 0.9);
+      border-bottom: 1px solid rgba(245, 158, 11, 0.08);
+      gap: 1rem;
+      font-size: 0.75rem;
+    }
+
+    .preview-menubar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .preview-menubar-sep {
+      width: 1px;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .preview-menubar-filename {
+      font-weight: 500;
+      color: var(--slate-300);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-menubar-hint {
+      color: var(--slate-500);
+      font-size: 0.7rem;
+      margin-left: auto;
+    }
+
+    .preview-menubar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── TAB BAR ── */
+    .preview-tabs {
+      display: flex;
+      align-items: center;
+      padding: 4px 8px;
+      gap: 2px;
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.73rem;
+      overflow-x: auto;
+    }
+
+    .preview-tab {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      color: var(--slate-400);
+      cursor: pointer;
+    }
+
+    .preview-tab.active {
+      background: rgba(40, 51, 71, 0.8);
+      color: var(--slate-200);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .preview-tab-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--amber-400);
+    }
+
+    /* ── TOOLBAR ── */
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 8px;
+      background: rgba(17, 24, 39, 0.7);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.7rem;
+      overflow-x: auto;
+    }
+
+    .preview-toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding:  0 4px;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .preview-toolbar-group:last-child {
+      border-right: none;
+    }
+
+    .preview-toolbar-btn {
+      padding: 4px 6px;
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 3px;
+      color: var(--slate-400);
+      font-size: 0.65rem;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+
+    .preview-toolbar-btn:hover {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber-400);
+    }
+
     /* ── FEATURES ── */
     .features-section {
       padding: 100px max(1.5rem, 6vw);
@@ -567,30 +691,76 @@
       <div class="titlebar-dot"></div>
       <span class="titlebar-label">document.md — Markdown Pro</span>
     </div>
+
+    <!-- Menubar -->
+    <div class="preview-menubar">
+      <div class="preview-menubar-left">
+        <button class="preview-toolbar-btn">↶</button>
+        <button class="preview-toolbar-btn">↷</button>
+        <span class="preview-menubar-sep" />
+        <span class="preview-menubar-filename">Getting Started.md</span>
+        <span class="preview-menubar-hint">📄 · Auto-save on</span>
+      </div>
+      <div class="preview-menubar-right">
+        <button class="preview-toolbar-btn">🌙</button>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="preview-tabs">
+      <div class="preview-tab active">
+        <span class="preview-tab-dot" />
+        Getting Started.md
+      </div>
+      <div class="preview-tab">
+        README.md
+      </div>
+      <button style="margin-left: auto; padding: 4px 6px; background: none; border: none; color: var(--slate-500); cursor: pointer; font-size: 0.8rem;">+</button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="preview-toolbar">
+      <div class="preview-toolbar-group">
+        <button class="preview-toolbar-btn">📁 File</button>
+      </div>
+      <div class="preview-toolbar-group">
+        <button class="preview-toolbar-btn">B</button>
+        <button class="preview-toolbar-btn">I</button>
+        <button class="preview-toolbar-btn">U</button>
+        <button class="preview-toolbar-btn">`</button>
+      </div>
+      <div class="preview-toolbar-group">
+        <button class="preview-toolbar-btn">⬅</button>
+        <button class="preview-toolbar-btn">↔</button>
+        <button class="preview-toolbar-btn">➡</button>
+      </div>
+      <div class="preview-toolbar-group">
+        <button class="preview-toolbar-btn">+ Insert</button>
+      </div>
+      <div class="preview-toolbar-group">
+        <button class="preview-toolbar-btn">Table</button>
+      </div>
+      <div class="preview-toolbar-group">
+        <button class="preview-toolbar-btn">📥</button>
+      </div>
+    </div>
+
     <div class="preview-ui">
       <div class="preview-sidebar">
         <div class="preview-sidebar-label">Outline</div>
-        <div class="preview-outline-item h1 active">Project Overview</div>
+        <div class="preview-outline-item h1 active">Getting Started</div>
         <div class="preview-outline-item h2">Installation</div>
-        <div class="preview-outline-item h2">Usage</div>
-        <div class="preview-outline-item h3">Basic Editing</div>
-        <div class="preview-outline-item h3">Shortcuts</div>
-        <div class="preview-outline-item h2">API Reference</div>
+        <div class="preview-outline-item h2">Key Features</div>
+        <div class="preview-outline-item h3">WYSIWYG Editing</div>
+        <div class="preview-outline-item h3">Multi-Tab Support</div>
+        <div class="preview-outline-item h2">Quick Tips</div>
       </div>
       <div class="preview-editor">
-        <div class="preview-h1">Project Overview</div>
-        <div class="preview-p">A high-performance Markdown editor built on ProseMirror with real-time WYSIWYG rendering and multi-tab support.</div>
-        <div class="preview-h2">Quick Start</div>
-        <div class="preview-p">Install via your preferred package manager and run the following command to launch:</div>
-        <div class="preview-code">
-          <span class="kw">import</span> <span class="str">'markdown-pro'</span><br>
-          <br>
-          <span class="kw">const</span> editor = <span class="kw">new</span> <span class="fn">MarkdownPro</span>({<br>
-          &nbsp;&nbsp;theme: <span class="str">'dark'</span>,<br>
-          &nbsp;&nbsp;autoSave: <span class="kw">true</span>,<br>
-          &nbsp;&nbsp;fontSize: <span class="num">16</span><br>
-          })<br>
-        </div>
+        <div class="preview-h1">Getting Started 🚀</div>
+        <div class="preview-p">Markdown Pro is a feature-rich WYSIWYG markdown editor built on ProseMirror. Perfect for writers and developers.</div>
+        <div class="preview-h2">Installation</div>
+        <div class="preview-p">Download the app for your platform from the download section.</div>
+        <div class="preview-p" style="margin-top: 8px; font-size: 0.8rem; color: var(--slate-500);">💡 Tip: You can also use Ctrl+S to save your work.</div>
       </div>
     </div>
   </div>
