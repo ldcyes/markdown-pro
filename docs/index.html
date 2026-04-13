@@ -217,9 +217,9 @@
     }
 
     .preview-frame {
-      max-width: 960px;
+      max-width: 1240px;
       margin: 0 auto;
-      border-radius: 16px;
+      border-radius: 18px;
       overflow: hidden;
       border: 1px solid rgba(245,158,11,0.15);
       box-shadow:
@@ -229,210 +229,11 @@
       background: rgba(15,23,42,0.9);
     }
 
-    .preview-titlebar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 18px;
-      background: rgba(30,41,59,0.8);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .titlebar-dot {
-      width: 12px; height: 12px;
-      border-radius: 50%;
-    }
-    .titlebar-dot:nth-child(1) { background: #ff5f57; }
-    .titlebar-dot:nth-child(2) { background: #ffbd2e; }
-    .titlebar-dot:nth-child(3) { background: #28c840; }
-
-    .titlebar-label {
-      margin-left: 8px;
-      font-size: 0.76rem;
-      color: var(--slate-500);
-      font-weight: 500;
-    }
-
-    .preview-ui {
-      padding: 0;
-      min-height: 360px;
-      display: grid;
-      grid-template-columns: 200px 1fr;
-    }
-
-    .preview-sidebar {
-      background: rgba(17,24,39,0.7);
-      border-right: 1px solid rgba(245,158,11,0.1);
-      padding: 16px 12px;
-    }
-
-    .preview-sidebar-label {
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--amber-600);
-      margin-bottom: 12px;
-    }
-
-    .preview-outline-item {
-      padding: 5px 8px;
-      border-radius: 4px;
-      font-size: 0.76rem;
-      color: var(--slate-400);
-      margin-bottom: 2px;
-    }
-
-    .preview-outline-item.h1 { font-weight: 700; color: var(--amber-400); }
-    .preview-outline-item.h2 { padding-left: 14px; }
-    .preview-outline-item.h3 { padding-left: 22px; font-size: 0.7rem; }
-    .preview-outline-item.active { background: rgba(245,158,11,0.1); color: var(--slate-200); }
-
-    .preview-editor {
-      padding: 28px 32px;
-      font-family: "Georgia", serif;
-    }
-
-    .preview-h1 { font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
-    .preview-h2 { font-size: 1.15rem; font-weight: 700; color: var(--slate-200); margin: 18px 0 6px; }
-    .preview-p { color: var(--slate-400); font-size: 0.88rem; line-height: 1.75; margin-bottom: 10px; }
-    .preview-code {
-      background: rgba(15,23,42,0.9);
-      border-radius: 6px;
-      padding: 12px 16px;
-      font-family: "Courier New", monospace;
-      font-size: 0.78rem;
-      color: #abb2bf;
-      margin: 10px 0;
-    }
-    .kw { color: #c678dd; }
-    .fn { color: #61afef; }
-    .str { color: #98c379; }
-    .num { color: #d19a66; }
-
-    /* ── MENU BAR ── */
-    .preview-menubar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 14px;
-      background: rgba(20, 27, 44, 0.9);
-      border-bottom: 1px solid rgba(245, 158, 11, 0.08);
-      gap: 1.2rem;
-      font-size: 0.75rem;
-    }
-
-    .preview-menubar-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .preview-menubar-sep {
-      width: 1px;
-      height: 16px;
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .preview-menubar-filename {
-      font-weight: 500;
-      color: var(--slate-300);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .preview-menubar-hint {
-      color: var(--slate-500);
-      font-size: 0.7rem;
-      margin-left: auto;
-    }
-
-    .preview-menubar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* ── TAB BAR ── */
-    .preview-tabs {
-      display: flex;
-      align-items: center;
-      padding: 4px 8px;
-      gap: 2px;
-      background: rgba(15, 23, 42, 0.6);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      font-size: 0.73rem;
-      overflow-x: auto;
-    }
-
-    .preview-tab {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 5px 10px;
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-bottom: none;
-      border-radius: 4px 4px 0 0;
-      color: var(--slate-400);
-      cursor: pointer;
-    }
-
-    .preview-tab.active {
-      background: rgba(40, 51, 71, 0.8);
-      color: var(--slate-200);
-      border-color: rgba(245, 158, 11, 0.3);
-    }
-
-    .preview-tab-dot {
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--amber-400);
-    }
-
-    /* ── TOOLBAR ── */
-    .preview-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 12px;
-      background: rgba(17, 24, 39, 0.7);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 0.7rem;
-      overflow-x: auto;
-    }
-
-    .preview-toolbar-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 0 8px;
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .preview-toolbar-group:last-child {
-      border-right: none;
-    }
-
-    .preview-toolbar-btn {
-      padding: 5px 10px;
-      background: rgba(245, 158, 11, 0.08);
-      border: 1px solid rgba(245, 158, 11, 0.2);
-      border-radius: 3px;
-      color: var(--slate-400);
-      font-size: 0.65rem;
-      cursor: pointer;
-      transition: background 100ms;
-      white-space: nowrap;
-    }
-
-    .preview-toolbar-btn:hover {
-      background: rgba(245, 158, 11, 0.15);
-      color: var(--amber-400);
+    .preview-image {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #f8f5ef;
     }
 
     /* ── FEATURES ── */
@@ -632,8 +433,9 @@
     /* ── RESPONSIVE ── */
     @media (max-width: 640px) {
       .nav-links { display: none; }
-      .preview-ui { grid-template-columns: 1fr; }
-      .preview-sidebar { display: none; }
+      .preview-section {
+        padding: 0 1rem;
+      }
     }
   </style>
 </head>
@@ -686,84 +488,13 @@
 <!-- PREVIEW -->
 <div class="preview-section">
   <div class="preview-frame">
-    <div class="preview-titlebar">
-      <div class="titlebar-dot"></div>
-      <div class="titlebar-dot"></div>
-      <div class="titlebar-dot"></div>
-      <span class="titlebar-label">document.md — Markdown Pro</span>
-    </div>
-
-    <!-- Menubar -->
-    <div class="preview-menubar">
-      <div class="preview-menubar-left">
-        <button class="preview-toolbar-btn">↶</button>
-        <button class="preview-toolbar-btn">↷</button>
-        <span class="preview-menubar-sep" />
-        <span class="preview-menubar-filename">Getting Started.md</span>
-        <span class="preview-menubar-hint">📄 · Auto-save on</span>
-      </div>
-      <div class="preview-menubar-right">
-        <button class="preview-toolbar-btn">🌙</button>
-      </div>
-    </div>
-
-    <!-- Tab bar -->
-    <div class="preview-tabs">
-      <div class="preview-tab active">
-        <span class="preview-tab-dot" />
-        Getting Started.md
-      </div>
-      <div class="preview-tab">
-        README.md
-      </div>
-      <button style="margin-left: auto; padding: 4px 6px; background: none; border: none; color: var(--slate-500); cursor: pointer; font-size: 0.8rem;">+</button>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="preview-toolbar">
-      <div class="preview-toolbar-group">
-        <button class="preview-toolbar-btn">📁 File</button>
-      </div>
-      <div class="preview-toolbar-group">
-        <button class="preview-toolbar-btn">B</button>
-        <button class="preview-toolbar-btn">I</button>
-        <button class="preview-toolbar-btn">U</button>
-        <button class="preview-toolbar-btn">`</button>
-      </div>
-      <div class="preview-toolbar-group">
-        <button class="preview-toolbar-btn">⬅</button>
-        <button class="preview-toolbar-btn">↔</button>
-        <button class="preview-toolbar-btn">➡</button>
-      </div>
-      <div class="preview-toolbar-group">
-        <button class="preview-toolbar-btn">+ Insert</button>
-      </div>
-      <div class="preview-toolbar-group">
-        <button class="preview-toolbar-btn">Table</button>
-      </div>
-      <div class="preview-toolbar-group">
-        <button class="preview-toolbar-btn">📥</button>
-      </div>
-    </div>
-
-    <div class="preview-ui">
-      <div class="preview-sidebar">
-        <div class="preview-sidebar-label">Outline</div>
-        <div class="preview-outline-item h1 active">Getting Started</div>
-        <div class="preview-outline-item h2">Installation</div>
-        <div class="preview-outline-item h2">Key Features</div>
-        <div class="preview-outline-item h3">WYSIWYG Editing</div>
-        <div class="preview-outline-item h3">Multi-Tab Support</div>
-        <div class="preview-outline-item h2">Quick Tips</div>
-      </div>
-      <div class="preview-editor">
-        <div class="preview-h1">Getting Started 🚀</div>
-        <div class="preview-p">Markdown Pro is a feature-rich WYSIWYG markdown editor built on ProseMirror. Perfect for writers and developers.</div>
-        <div class="preview-h2">Installation</div>
-        <div class="preview-p">Download the app for your platform from the download section.</div>
-        <div class="preview-p" style="margin-top: 8px; font-size: 0.8rem; color: var(--slate-500);">💡 Tip: You can also use Ctrl+S to save your work.</div>
-      </div>
-    </div>
+    <img
+      class="preview-image"
+      src="./assets/app-screenshot.png"
+      alt="Full-resolution screenshot of the Markdown Pro editor interface"
+      width="3200"
+      height="2000"
+    />
   </div>
 </div>
 
