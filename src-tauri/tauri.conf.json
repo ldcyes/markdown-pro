@@ -16,7 +16,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "longDescription": "A Typora-style WYSIWYG Markdown editor with LaTeX and Mermaid support",
+    "longDescription": "A modern WYSIWYG Markdown editor with LaTeX and Mermaid support",
     "shortDescription": "Markdown Pro Editor",
     "targets": "all",
     "macOS": {
@@ -38,7 +38,7 @@
     "android": {}
   },
   "productName": "Markdown Pro",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "identifier": "com.markdownpro.app",
   "plugins": {},
   "app": {

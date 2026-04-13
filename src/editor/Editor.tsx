@@ -31,6 +31,7 @@ import {
   Rows3,
   Save,
   SaveAll,
+  Sigma,
   SunMedium,
   Table2,
   Trash2,
@@ -46,7 +47,7 @@ import {
 } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { DOMSerializer, Fragment } from "prosemirror-model";
+import { DOMSerializer, Fragment, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   liftListItem,
   sinkListItem,
@@ -66,9 +67,11 @@ import {
   goToNextCell,
   tableEditing,
 } from "prosemirror-tables";
-import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
+import { EditorView, Decoration, DecorationSet, type NodeView } from "prosemirror-view";
 import "prosemirror-view/style/prosemirror.css";
 import "prosemirror-tables/style/tables.css";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import hljs from "highlight.js/lib/core";
 import python from "highlight.js/lib/languages/python";
 import cpp from "highlight.js/lib/languages/cpp";
@@ -339,6 +342,53 @@ function setParagraphBlock(): Command {
   };
 }
 
+class MathNodeView implements NodeView {
+  dom: HTMLElement;
+  private node: ProseMirrorNode;
+  private readonly displayMode: boolean;
+
+  constructor(node: ProseMirrorNode, displayMode: boolean) {
+    this.node = node;
+    this.displayMode = displayMode;
+    this.dom = document.createElement(displayMode ? "div" : "span");
+    this.dom.className = displayMode ? "editor__math-block" : "editor__math-inline";
+    this.render();
+  }
+
+  update(node: ProseMirrorNode) {
+    if (node.type !== this.node.type) {
+      return false;
+    }
+
+    this.node = node;
+    this.render();
+    return true;
+  }
+
+  ignoreMutation() {
+    return true;
+  }
+
+  private render() {
+    const content = String(this.node.attrs.content || "").trim();
+    this.dom.setAttribute("data-content", content);
+
+    if (!content) {
+      this.dom.textContent = this.displayMode ? "$$...$$" : "$...$";
+      return;
+    }
+
+    try {
+      katex.render(content, this.dom, {
+        throwOnError: false,
+        displayMode: this.displayMode,
+      });
+    } catch {
+      this.dom.textContent = this.displayMode ? `$$${content}$$` : `$${content}$`;
+    }
+  }
+}
+
 interface EditorProps {
   theme: string;
   onThemeToggle: () => void;
@@ -384,6 +434,9 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     findActiveOutlineId(outlineItems, 0),
   );
   const [showImageCrop, setShowImageCrop] = useState<{ src: string; pos: number } | null>(null);
+  const [showFormulaInserter, setShowFormulaInserter] = useState(false);
+  const [formulaContent, setFormulaContent] = useState("E = mc^2");
+  const [formulaDisplayMode, setFormulaDisplayMode] = useState<"inline" | "block">("inline");
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const resizerRef = useRef<HTMLDivElement | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
@@ -417,6 +470,40 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
       reader.readAsDataURL(file);
     }, { once: true });
     input.click();
+  });
+
+  const openFormulaInserter = useEffectEvent((mode: "inline" | "block" = "inline") => {
+    setFormulaDisplayMode(mode);
+    setFormulaContent(mode === "block" ? "\\int_0^1 x^2 \\, dx = \\frac{1}{3}" : "E = mc^2");
+    setShowFormulaInserter(true);
+  });
+
+  const insertFormula = useEffectEvent(() => {
+    const view = viewRef.current;
+    const content = formulaContent.trim();
+    if (!view || !content) {
+      setShowFormulaInserter(false);
+      return;
+    }
+
+    const isBlock = formulaDisplayMode === "block";
+    const targetNode = isBlock ? editorSchema.nodes.math_block : editorSchema.nodes.math_inline;
+
+    try {
+      if (targetNode) {
+        const formulaNode = targetNode.create({ content });
+        view.dispatch(view.state.tr.replaceSelectionWith(formulaNode).scrollIntoView());
+      } else {
+        const fallback = isBlock ? `\n$$\n${content}\n$$\n` : `$${content}$`;
+        view.dispatch(view.state.tr.insertText(fallback).scrollIntoView());
+      }
+    } catch {
+      const fallback = isBlock ? `\n$$\n${content}\n$$\n` : `$${content}$`;
+      view.dispatch(view.state.tr.insertText(fallback).scrollIntoView());
+    }
+
+    view.focus();
+    setShowFormulaInserter(false);
   });
 
   const syncSnapshot = useEffectEvent(
@@ -678,6 +765,8 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
       attributes: { class: "ProseMirror editor__surface", role: "textbox", "aria-multiline": "true" },
       nodeViews: {
         image(node, view, getPos) { return new ImageResizeView(node, view, getPos); },
+        math_inline(node) { return new MathNodeView(node, false); },
+        math_block(node) { return new MathNodeView(node, true); },
       },
       dispatchTransaction(transaction) {
         const nextState = view.state.apply(transaction);
@@ -741,6 +830,22 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [openDropdown]);
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "m") {
+        event.preventDefault();
+        openFormulaInserter("inline");
+      }
+      if ((isMac ? event.metaKey : event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void handleSaveFile();
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [openFormulaInserter]);
+
   const { strong, em } = editorSchema.marks;
   const { heading, code_block } = editorSchema.nodes;
   const documentSize = new Blob([activeTab.content]).size;
@@ -775,6 +880,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     { active: activeToolbarState.bulletList, icon: List, id: "bullet-list", label: "Bullets", onClick: () => { void toggleBulletListCommand(); } },
     { active: activeToolbarState.orderedList, icon: ListOrdered, id: "ordered-list", label: "Numbers", onClick: () => { void toggleOrderedListCommand(); } },
     { active: activeToolbarState.codeBlock, icon: Code2, id: "code-block", label: "Code", onClick: () => runEditorCommand(setBlockType(code_block)) },
+    { icon: Sigma, id: "insert-formula", label: "Formula", onClick: () => openFormulaInserter("inline") },
     { icon: ImageIcon, id: "insert-image", label: "Image", onClick: handleInsertImageFromPicker },
     { icon: Table2, id: "insert-table", label: "Table", onClick: () => runEditorCommand(insertTable) },
   ];
@@ -856,6 +962,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     { label: "File", items: [{ keys: [modKey, "S"], desc: "Save" }] },
     { label: "Edit", items: [{ keys: [modKey, "Z"], desc: "Undo" }, { keys: [modKey, "Y"], desc: "Redo" }] },
     { label: "Format", items: [{ keys: [modKey, "B"], desc: "Bold" }, { keys: [modKey, "I"], desc: "Italic" }] },
+    { label: "Math", items: [{ keys: [modKey, "Shift", "M"], desc: "Formula" }] },
     { label: "Heading", items: [{ keys: [modKey, "Alt", "1-4"], desc: "H1-H4" }] },
     { label: "List", items: [{ keys: ["Tab"], desc: "Indent" }, { keys: ["Shift", "Tab"], desc: "Dedent" }] },
     { label: "Table", items: [{ keys: ["Tab"], desc: "Next cell" }] },
@@ -984,6 +1091,50 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
         <div ref={resizerRef} className={`editor__resizer${isDragging ? " editor__resizer--dragging" : ""}`} onMouseDown={handleResizerMouseDown} />
         <div ref={mountRef} className="editor__mount" />
       </div>
+
+      {showFormulaInserter && (
+        <div className="editor__dialog-backdrop" role="presentation" onClick={() => setShowFormulaInserter(false)}>
+          <div
+            className="editor__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Formula inserter"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="editor__dialog-title">Insert Formula</h3>
+            <label className="editor__dialog-field">
+              <span>LaTeX</span>
+              <textarea
+                className="editor__dialog-textarea"
+                value={formulaContent}
+                onChange={(event) => setFormulaContent(event.target.value)}
+                rows={4}
+                placeholder="e.g. E = mc^2"
+              />
+            </label>
+            <div className="editor__dialog-modes" role="radiogroup" aria-label="Formula mode">
+              <button
+                type="button"
+                className={`editor__dialog-mode${formulaDisplayMode === "inline" ? " editor__dialog-mode--active" : ""}`}
+                onClick={() => setFormulaDisplayMode("inline")}
+              >
+                Inline
+              </button>
+              <button
+                type="button"
+                className={`editor__dialog-mode${formulaDisplayMode === "block" ? " editor__dialog-mode--active" : ""}`}
+                onClick={() => setFormulaDisplayMode("block")}
+              >
+                Block
+              </button>
+            </div>
+            <div className="editor__dialog-actions">
+              <button type="button" className="editor__menu-btn" onClick={() => setShowFormulaInserter(false)}>Cancel</button>
+              <button type="button" className="editor__menu-btn editor__dialog-insert" onClick={insertFormula}>Insert</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shortcut bar */}
       <div className="editor__shortcuts">

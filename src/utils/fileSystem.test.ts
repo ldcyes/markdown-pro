@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   clearDraft,
   DEFAULT_DRAFT_KEY,
+  formatFileSize,
   loadDraft,
   normalizeMarkdownFilename,
   readMarkdownFile,
@@ -71,4 +72,32 @@ test("readMarkdownFile returns text content and metadata from a file-like object
     lastModified: 1710000000000,
     size: 128,
   });
+});
+
+test("formatFileSize formats bytes into human readable units", () => {
+  assert.equal(formatFileSize(0), "0 B");
+  assert.equal(formatFileSize(512), "512 B");
+  assert.equal(formatFileSize(1024), "1.0 KB");
+  assert.equal(formatFileSize(1536), "1.5 KB");
+  assert.equal(formatFileSize(1048576), "1.0 MB");
+  assert.equal(formatFileSize(1073741824), "1.0 GB");
+});
+
+test("normalizeMarkdownFilename handles edge cases", () => {
+  assert.equal(normalizeMarkdownFilename("  "), "untitled.md");
+  assert.equal(normalizeMarkdownFilename(""), "untitled.md");
+  assert.equal(normalizeMarkdownFilename("test.MARKDOWN"), "test.MARKDOWN");
+  assert.equal(normalizeMarkdownFilename("test.MD"), "test.MD");
+});
+
+test("loadDraft returns null for invalid JSON", () => {
+  const storage = createMemoryStorage();
+  storage.setItem(DEFAULT_DRAFT_KEY, "not json");
+  assert.equal(loadDraft(storage, DEFAULT_DRAFT_KEY), null);
+});
+
+test("loadDraft returns null when content is not a string", () => {
+  const storage = createMemoryStorage();
+  storage.setItem(DEFAULT_DRAFT_KEY, JSON.stringify({ content: 123 }));
+  assert.equal(loadDraft(storage, DEFAULT_DRAFT_KEY), null);
 });

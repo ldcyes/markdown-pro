@@ -105,3 +105,56 @@ test("findActiveOutlineId returns the closest heading at or before the cursor", 
   assert.equal(findActiveOutlineId(items, 18), "setup");
   assert.equal(findActiveOutlineId(items, 999), "api");
 });
+
+test("extractOutline generates correct slugs for CJK headings", () => {
+  const doc = editorSchema.nodeFromJSON({
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 1 },
+        content: [{ type: "text", text: "简介" }],
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "详细说明" }],
+      },
+    ],
+  });
+
+  const outline = extractOutline(doc);
+  assert.equal(outline.length, 2);
+  // CJK characters should be preserved in slugs, not stripped to "section"
+  assert.equal(outline[0].id, "简介");
+  assert.equal(outline[1].id, "详细说明");
+});
+
+test("extractOutline deduplicates slugs for repeated headings", () => {
+  const doc = editorSchema.nodeFromJSON({
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "Section" }],
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "Section" }],
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "Section" }],
+      },
+    ],
+  });
+
+  const outline = extractOutline(doc);
+  assert.equal(outline.length, 3);
+  assert.equal(outline[0].id, "section");
+  assert.equal(outline[1].id, "section-2");
+  assert.equal(outline[2].id, "section-3");
+});

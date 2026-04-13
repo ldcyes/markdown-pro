@@ -76,6 +76,7 @@ test("markdownToProseMirror parses headings, marks, lists, and code blocks", () 
       },
       {
         type: "code_block",
+        attrs: { language: "ts" },
         content: [{ type: "text", text: 'console.log("ready");\n' }],
       },
     ],
@@ -359,4 +360,157 @@ test("proseMirrorToMarkdown serializes tables to GFM markdown", () => {
       "| Parser | Ready | Core |",
     ].join("\n"),
   );
+});
+
+test("markdownToProseMirror parses and serializes links", () => {
+  const markdown = "Visit [Google](https://google.com) for search.";
+  const doc = markdownToProseMirror(markdown);
+
+  let linkCount = 0;
+  doc.descendants((node) => {
+    if (node.isText && node.marks.some((m) => m.type.name === "link")) {
+      linkCount++;
+      const linkMark = node.marks.find((m) => m.type.name === "link");
+      assert.equal(linkMark?.attrs.href, "https://google.com");
+      assert.equal(node.text, "Google");
+    }
+  });
+  assert.equal(linkCount, 1);
+
+  const serialized = proseMirrorToMarkdown(doc);
+  assert.ok(serialized.includes("[Google](https://google.com)"));
+});
+
+test("markdownToProseMirror parses links with title", () => {
+  const markdown = '[Example](https://example.com "Example Site")';
+  const doc = markdownToProseMirror(markdown);
+
+  let found = false;
+  doc.descendants((node) => {
+    if (node.isText && node.marks.some((m) => m.type.name === "link")) {
+      found = true;
+      const linkMark = node.marks.find((m) => m.type.name === "link");
+      assert.equal(linkMark?.attrs.href, "https://example.com");
+      assert.equal(linkMark?.attrs.title, "Example Site");
+    }
+  });
+  assert.equal(found, true);
+
+  const serialized = proseMirrorToMarkdown(doc);
+  assert.ok(serialized.includes('[Example](https://example.com "Example Site")'));
+});
+
+test("markdownToProseMirror parses bold links", () => {
+  const markdown = "**[Bold Link](https://example.com)**";
+  const doc = markdownToProseMirror(markdown);
+
+  let found = false;
+  doc.descendants((node) => {
+    if (node.isText && node.text === "Bold Link") {
+      found = true;
+      const markTypes = node.marks.map((m) => m.type.name).sort();
+      assert.ok(markTypes.includes("link"));
+      assert.ok(markTypes.includes("strong"));
+    }
+  });
+  assert.equal(found, true);
+});
+
+test("markdownToProseMirror preserves code block language", () => {
+  const markdown = "```python\nprint('hello')\n```";
+  const doc = markdownToProseMirror(markdown);
+
+  let found = false;
+  doc.descendants((node) => {
+    if (node.type.name === "code_block") {
+      found = true;
+      assert.equal(node.attrs.language, "python");
+    }
+  });
+  assert.equal(found, true);
+
+  const serialized = proseMirrorToMarkdown(doc);
+  assert.ok(serialized.includes("```python"));
+});
+
+test("markdownToProseMirror handles code blocks without language", () => {
+  const markdown = "```\ngeneric code\n```";
+  const doc = markdownToProseMirror(markdown);
+
+  let found = false;
+  doc.descendants((node) => {
+    if (node.type.name === "code_block") {
+      found = true;
+      assert.equal(node.attrs.language, null);
+    }
+  });
+  assert.equal(found, true);
+});
+
+test("markdownToProseMirror parses horizontal rules", () => {
+  const markdown = "Above\n\n---\n\nBelow";
+  const doc = markdownToProseMirror(markdown);
+
+  let hrCount = 0;
+  doc.descendants((node) => {
+    if (node.type.name === "horizontal_rule") {
+      hrCount++;
+    }
+  });
+  assert.equal(hrCount, 1);
+
+  const serialized = proseMirrorToMarkdown(doc);
+  assert.ok(serialized.includes("---"));
+});
+
+test("markdownToProseMirror parses blockquotes", () => {
+  const markdown = "> This is a quote\n> with two lines";
+  const doc = markdownToProseMirror(markdown);
+
+  let bqCount = 0;
+  doc.descendants((node) => {
+    if (node.type.name === "blockquote") {
+      bqCount++;
+    }
+  });
+  assert.equal(bqCount, 1);
+
+  const serialized = proseMirrorToMarkdown(doc);
+  assert.ok(serialized.includes("> "));
+});
+
+test("round-trip preserves complex markdown", () => {
+  const markdown = [
+    "# Title",
+    "",
+    "A paragraph with **bold**, *italic*, and `code`.",
+    "",
+    "- Item 1",
+    "- Item 2",
+    "",
+    "1. First",
+    "2. Second",
+    "",
+    "```ts",
+    "const x = 1;",
+    "```",
+    "",
+    "---",
+    "",
+    "> A quote",
+    "",
+    "| A | B |",
+    "| --- | --- |",
+    "| 1 | 2 |",
+  ].join("\n");
+
+  const doc = markdownToProseMirror(markdown);
+  const serialized = proseMirrorToMarkdown(doc);
+
+  // Re-parse and check key structures survive
+  const doc2 = markdownToProseMirror(serialized);
+  const serialized2 = proseMirrorToMarkdown(doc2);
+
+  // Second round-trip should be stable
+  assert.equal(serialized, serialized2);
 });

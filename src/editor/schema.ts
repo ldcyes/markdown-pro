@@ -164,6 +164,28 @@ const nodes = addListNodes(
     },
   })
   .update("image", imageNode.image)
+  // Override code_block to support language attribute
+  .update("code_block", {
+    content: "text*",
+    marks: "",
+    group: "block",
+    code: true,
+    defining: true,
+    attrs: { language: { default: null } },
+    parseDOM: [{
+      tag: "pre",
+      preserveWhitespace: "full" as const,
+      getAttrs: (dom: HTMLElement) => ({
+        language: dom.getAttribute("data-language") || null,
+      }),
+    }],
+    toDOM: (node: ProseMirrorNode) => {
+      const lang = node.attrs.language as string | null;
+      return lang
+        ? ["pre", { "data-language": lang }, ["code", 0]]
+        : ["pre", ["code", 0]];
+    },
+  })
   .addToEnd("math_inline", mathInlineNode.math_inline)
   .addToEnd("math_block", mathBlockNode.math_block)
   .addToEnd("mermaid", mermaidNode.mermaid)

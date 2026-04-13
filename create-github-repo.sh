@@ -24,7 +24,7 @@ if command -v gh &> /dev/null; then
         echo "📦 创建 GitHub 仓库..."
         gh repo create markdown-pro \
             --public \
-            --description "Typora-style Markdown editor with multi-platform support (Web/Windows/Android/macOS/iOS)" \
+            --description "Modern Markdown editor with multi-platform support (Windows/Android/macOS/iOS/Linux)" \
             --source=. \
             --push \
             --remote=origin
@@ -64,7 +64,7 @@ else
     echo ""
     echo "2️⃣  填写信息："
     echo "   Repository name: markdown-pro"
-    echo "   Description: Typora-style Markdown editor with multi-platform support"
+    echo "   Description: Modern Markdown editor with multi-platform support"
     echo "   选择: Public"
     echo "   ❌ 不要勾选 'Add a README file'"
     echo "   ❌ 不要勾选 'Add .gitignore'"

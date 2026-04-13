@@ -15,7 +15,8 @@ function slugifyHeading(text: string) {
   return text
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/[^\p{L}\p{N}\-]/gu, "")
     .replace(/^-+|-+$/g, "");
 }
 

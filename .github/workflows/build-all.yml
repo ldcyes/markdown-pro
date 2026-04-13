@@ -244,7 +244,7 @@ jobs:
           body: |
             ## Markdown Pro ${{ github.ref_name }}
 
-            A Typora-style WYSIWYG Markdown editor built with Tauri + React + ProseMirror.
+            A modern WYSIWYG Markdown editor built with Tauri + React + ProseMirror.
 
             ### Features
             - Multi-tab editing with per-tab undo/redo history

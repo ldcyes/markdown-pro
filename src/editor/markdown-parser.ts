@@ -6,6 +6,7 @@ type MarkdownToken = ReturnType<MarkdownIt["parse"]>[number];
 
 interface MarkdownMark {
   type: string;
+  attrs?: Record<string, string | null>;
 }
 
 interface MarkdownNodeJSON {
@@ -14,12 +15,6 @@ interface MarkdownNodeJSON {
   content?: MarkdownNodeJSON[];
   marks?: MarkdownMark[];
   text?: string;
-}
-
-interface OutlineItem {
-  id: string;
-  level: number;
-  text: string;
 }
 
 const markdown = new MarkdownIt({
@@ -69,10 +64,17 @@ function createTextNode(
     return null;
   }
 
+  const serializedMarks = marks.map((m) => {
+    if (m.attrs) {
+      return { type: m.type, attrs: m.attrs };
+    }
+    return { type: m.type };
+  });
+
   return {
     type: "text",
     text,
-    ...(marks.length > 0 ? { marks: [...marks] } : {}),
+    ...(serializedMarks.length > 0 ? { marks: serializedMarks } : {}),
   };
 }
 
@@ -198,6 +200,15 @@ function parseInlineTokens(tokens: MarkdownToken[]): MarkdownNodeJSON[] {
       case "em_close":
         popMark(marks, "em");
         break;
+      case "link_open": {
+        const href = token.attrGet("href") || "";
+        const title = token.attrGet("title") || null;
+        marks.push({ type: "link", attrs: { href, title } } as unknown as MarkdownMark);
+        break;
+      }
+      case "link_close":
+        popMark(marks, "link");
+        break;
       case "code_inline": {
         const textNode = createTextNode(token.content, [
           ...marks,
@@ -309,10 +320,17 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
       case "list_item_open":
         stack.push(createContainerNode("list_item"));
         break;
+      case "blockquote_open":
+        stack.push(createContainerNode("blockquote"));
+        break;
+      case "hr":
+        appendNode(current, { type: "horizontal_rule" });
+        break;
       case "heading_close":
       case "paragraph_close":
       case "bullet_list_close":
       case "ordered_list_close":
+      case "blockquote_close":
       case "table_close":
       case "tr_close":
       case "list_item_close": {
@@ -355,6 +373,7 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
 
         appendNode(current, {
           type: "code_block",
+          attrs: { language: token.info || null },
           content: token.content
             ? [{ type: "text", text: token.content }]
             : [],
@@ -364,6 +383,7 @@ function markdownToDocumentJSON(source: string): MarkdownNodeJSON {
       case "code_block":
         appendNode(current, {
           type: "code_block",
+          attrs: { language: null },
           content: token.content
             ? [{ type: "text", text: token.content }]
             : [],
@@ -386,6 +406,12 @@ function wrapMarks(text: string, marks: readonly MarkdownMark[] = []): string {
         return `**${current}**`;
       case "em":
         return `*${current}*`;
+      case "link": {
+        const href = mark.attrs?.href ?? "";
+        const title = mark.attrs?.title;
+        const titlePart = title ? ` "${title}"` : "";
+        return `[${current}](${href}${titlePart})`;
+      }
       default:
         return current;
     }
@@ -400,7 +426,10 @@ function serializeInline(node: ProseMirrorNode): string {
       parts.push(
         wrapMarks(
           child.text ?? "",
-          child.marks.map((mark) => ({ type: mark.type.name })),
+          child.marks.map((mark) => ({
+            type: mark.type.name,
+            attrs: mark.attrs as Record<string, string | null> | undefined,
+          })),
         ),
       );
       return;
@@ -551,8 +580,9 @@ function serializeList(node: ProseMirrorNode, depth: number): string {
 function serializeCodeBlock(node: ProseMirrorNode, depth: number): string {
   const indent = "  ".repeat(depth);
   const content = node.textContent;
+  const language = (node.attrs.language as string) || "";
 
-  return `${indent}\`\`\`\n${content}\`\`\``;
+  return `${indent}\`\`\`${language}\n${content}\`\`\``;
 }
 
 function serializeBlock(node: ProseMirrorNode, depth = 0): string {
@@ -571,9 +601,17 @@ function serializeBlock(node: ProseMirrorNode, depth = 0): string {
     case "table":
       return serializeTable(node, depth);
     case "math_block":
-      return `${indent}$$${node.attrs.content as string}$$`;
+      return `${indent}$$\n${node.attrs.content as string}\n$$`;
     case "mermaid":
       return `${indent}\`\`\`mermaid\n${node.attrs.content as string}\n\`\`\``;
+    case "horizontal_rule":
+      return `${indent}---`;
+    case "blockquote": {
+      const inner = node.content.content
+        .map((child) => serializeBlock(child, depth))
+        .join("\n\n");
+      return inner.split("\n").map((line) => `${indent}> ${line}`).join("\n");
+    }
     default:
       return `${indent}${node.textContent}`;
   }
@@ -595,24 +633,4 @@ export function markdownToProseMirror(
 
 export function proseMirrorToMarkdown(doc: ProseMirrorNode): string {
   return serializeDocument(doc);
-}
-
-export function extractOutline(doc: ProseMirrorNode): OutlineItem[] {
-  const outline: OutlineItem[] = [];
-  let headingIndex = 0;
-
-  doc.descendants((node) => {
-    if (node.type.name === "heading") {
-      outline.push({
-        id: `heading-${headingIndex}`,
-        level: Number(node.attrs.level),
-        text: node.textContent,
-      });
-      headingIndex += 1;
-    }
-
-    return true;
-  });
-
-  return outline;
 }

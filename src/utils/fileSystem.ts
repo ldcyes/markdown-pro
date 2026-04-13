@@ -194,6 +194,18 @@ export async function openMarkdownFile(): Promise<MarkdownFileSnapshot | null> {
       { once: true },
     );
 
+    // Handle cancel: when focus returns to the window without a file selected
+    const onFocus = () => {
+      window.removeEventListener("focus", onFocus);
+      // Delay to allow the change event to fire first
+      setTimeout(() => {
+        if (!input.files?.length) {
+          resolve(null);
+        }
+      }, 300);
+    };
+    window.addEventListener("focus", onFocus);
+
     input.click();
   });
 }
