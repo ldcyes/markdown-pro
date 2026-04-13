@@ -24,29 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build web app
-        run: pnpm build
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload dist as Pages artifact
+      - name: Upload docs as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/
+          path: docs/
 
       - name: Deploy to GitHub Pages
         id: deployment
