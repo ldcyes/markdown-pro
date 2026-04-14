@@ -9,6 +9,7 @@
   <meta property="og:description" content="A beautiful WYSIWYG Markdown editor for Windows, macOS, and Linux." />
   <style>
     :root {
+      --content-width: 1100px;
       --amber-300: #fcd34d;
       --amber-400: #fbbf24;
       --amber-500: #f59e0b;
@@ -98,7 +99,7 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 120px max(1.5rem, 6vw) 80px;
+      padding: 120px max(1.5rem, 6vw) 56px;
       background:
         radial-gradient(ellipse 80% 60% at 50% -10%, rgba(245,158,11,0.18), transparent),
         radial-gradient(ellipse 60% 50% at 80% 80%, rgba(99,102,241,0.07), transparent),
@@ -212,12 +213,12 @@
 
     /* ── SCREENSHOT / PREVIEW ── */
     .preview-section {
-      padding: 0 max(1.5rem, 6vw);
-      margin-top: -20px;
+      padding: 0 max(1.5rem, 6vw) 40px;
+      margin-top: -12px;
     }
 
     .preview-frame {
-      max-width: 1240px;
+      max-width: var(--content-width);
       margin: 0 auto;
       border-radius: 18px;
       overflow: hidden;
@@ -238,8 +239,8 @@
 
     /* ── FEATURES ── */
     .features-section {
-      padding: 100px max(1.5rem, 6vw);
-      max-width: 1100px;
+      padding: 56px max(1.5rem, 6vw) 100px;
+      max-width: var(--content-width);
       margin: 0 auto;
     }
 
@@ -319,7 +320,7 @@
     }
 
     .download-inner {
-      max-width: 900px;
+      max-width: var(--content-width);
       margin: 0 auto;
       text-align: center;
     }
@@ -433,8 +434,15 @@
     /* ── RESPONSIVE ── */
     @media (max-width: 640px) {
       .nav-links { display: none; }
+      .hero {
+        min-height: auto;
+        padding: 104px 1rem 40px;
+      }
       .preview-section {
-        padding: 0 1rem;
+        padding: 0 1rem 28px;
+      }
+      .features-section {
+        padding: 44px 1rem 84px;
       }
     }
   </style>
