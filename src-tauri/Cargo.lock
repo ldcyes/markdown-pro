@@ -2100,7 +2100,7 @@ dependencies = [
 
 [[package]]
 name = "markdown-pro"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "cocoa",
  "libc",
