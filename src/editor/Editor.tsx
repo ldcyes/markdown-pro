@@ -106,6 +106,7 @@ import {
   findActiveOutlineId,
   type OutlineItem,
 } from "./outline.js";
+import { applyOpenedMarkdownFiles } from "./openedFiles.js";
 import { editorSchema } from "./schema";
 import {
   getActiveToolbarState,
@@ -114,6 +115,11 @@ import {
 } from "./toolbarState.js";
 import { handleImageDrop, handleImagePaste, insertImage } from "./imageUtils.js";
 import { ImageResizeView } from "./ImageResizeView.js";
+import {
+  getStartupMarkdownFiles,
+  listenForOpenedMarkdownFiles,
+  type OpenedMarkdownFile,
+} from "../utils/desktopOpenFiles.js";
 
 // Register highlight.js languages
 hljs.registerLanguage("python", python);
@@ -179,6 +185,7 @@ interface TabState {
   updatedAt: number;
   editorStateJSON: unknown | null; // JSON snapshot of ProseMirror state for restoring undo history
   fileHandle: unknown | null; // FileSystemFileHandle for saving to disk
+  sourcePath: string | null;
 }
 
 let tabIdCounter = 0;
@@ -407,6 +414,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
       updatedAt: draft?.updatedAt ?? 0,
       editorStateJSON: null,
       fileHandle: null,
+      sourcePath: null,
     }];
   });
   const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
@@ -534,7 +542,16 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     const content = DEFAULT_MARKDOWN;
     setTabs((prev) => [
       ...prev,
-      { id, fileName: "untitled.md", content, savedContent: content, updatedAt: 0, editorStateJSON: null, fileHandle: null },
+      {
+        id,
+        fileName: "untitled.md",
+        content,
+        savedContent: content,
+        updatedAt: 0,
+        editorStateJSON: null,
+        fileHandle: null,
+        sourcePath: null,
+      },
     ]);
     setActiveTabId(id);
   });
@@ -599,7 +616,13 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     setActiveToolbarState(getActiveToolbarState(nextState));
     setOutlineItems(nextOutlineItems);
     setActiveOutlineId(findActiveOutlineId(nextOutlineItems, 0));
-    setStatusMessage(tab.updatedAt ? "Restored draft" : "Editing draft");
+    setStatusMessage(
+      tab.sourcePath
+        ? `Opened ${normalizeMarkdownFilename(tab.fileName)}`
+        : tab.updatedAt
+          ? "Restored draft"
+          : "Editing draft",
+    );
   }, [activeTabId]);
 
   const handleOpenFile = useEffectEvent(async () => {
@@ -610,7 +633,16 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     const id = nextTabId();
     setTabs((prev) => [
       ...prev,
-      { id, fileName: nextFile.fileName, content: nextFile.content, savedContent: nextFile.content, updatedAt: Date.now(), editorStateJSON: null, fileHandle: null },
+      {
+        id,
+        fileName: nextFile.fileName,
+        content: nextFile.content,
+        savedContent: nextFile.content,
+        updatedAt: Date.now(),
+        editorStateJSON: null,
+        fileHandle: null,
+        sourcePath: null,
+      },
     ]);
     setActiveTabId(id);
   });
@@ -755,6 +787,19 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     }
   });
 
+  const handleOpenedMarkdownFiles = useEffectEvent(
+    (files: readonly OpenedMarkdownFile[], options?: { replaceInitialTab?: boolean }) => {
+      const result = applyOpenedMarkdownFiles(tabs, files, nextTabId, options);
+      if (!result.activeTabId) {
+        return;
+      }
+
+      setTabs(result.tabs);
+      setActiveTabId(result.activeTabId);
+      setStatusMessage(`Opened ${result.openedFileName ?? "Markdown file"}`);
+    },
+  );
+
   // Mount ProseMirror
   useEffect(() => {
     if (!mountRef.current) return;
@@ -783,6 +828,34 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     });
     viewRef.current = view;
     return () => { viewRef.current?.destroy(); viewRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten = () => {};
+
+    const setupDesktopFileOpenHandling = async () => {
+      const startupFiles = await getStartupMarkdownFiles();
+      if (disposed) {
+        return;
+      }
+
+      handleOpenedMarkdownFiles(startupFiles, { replaceInitialTab: true });
+      unlisten = await listenForOpenedMarkdownFiles((files) => {
+        handleOpenedMarkdownFiles(files);
+      });
+
+      if (disposed) {
+        unlisten();
+      }
+    };
+
+    void setupDesktopFileOpenHandling();
+
+    return () => {
+      disposed = true;
+      unlisten();
+    };
   }, []);
 
   // Draft auto-save to localStorage
