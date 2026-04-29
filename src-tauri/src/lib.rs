@@ -7,7 +7,9 @@ use std::{
 };
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, RunEvent};
+use tauri::{AppHandle, Emitter, Manager};
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use tauri::RunEvent;
 
 const OPEN_MARKDOWN_FILES_EVENT: &str = "markdown-pro://open-files";
 
@@ -143,10 +145,14 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
-            if let RunEvent::Opened { paths } = event {
-                let files = read_markdown_files(paths);
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            if let RunEvent::Opened { urls } = event {
+                let files = read_markdown_files(urls.into_iter().filter_map(|url| url.to_file_path().ok()));
                 emit_opened_markdown_files(app, files);
             }
+
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+            let _ = (app, event);
         });
 }
 
@@ -165,7 +171,9 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system time before unix epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!("markdown-pro-{unique}-{file_name}"))
+        let directory = std::env::temp_dir().join(format!("markdown-pro-{unique}"));
+        fs::create_dir_all(&directory).expect("create temporary directory");
+        directory.join(file_name)
     }
 
     #[test]
@@ -177,27 +185,42 @@ mod tests {
 
         let cwd = markdown_path
             .parent()
-            .expect("temporary file should have a parent");
+            .expect("temporary file should have a parent")
+            .to_path_buf();
+        let text_parent = text_path
+            .parent()
+            .expect("temporary file should have a parent")
+            .to_path_buf();
+        let markdown_argument = markdown_path
+            .file_name()
+            .expect("markdown file name should exist");
+        let text_argument = text_path.file_name().expect("text file name should exist");
         let paths = collect_markdown_paths(
             [
                 OsStr::new("markdown-pro"),
-                OsStr::new("notes.md"),
+                markdown_argument,
                 OsStr::new("--flag"),
-                OsStr::new("notes.txt"),
+                text_argument,
             ],
-            cwd,
+            &cwd,
         );
 
         assert_eq!(paths, vec![fs::canonicalize(&markdown_path).expect("canonical markdown path")]);
 
         let _ = fs::remove_file(markdown_path);
         let _ = fs::remove_file(text_path);
+        let _ = fs::remove_dir(cwd);
+        let _ = fs::remove_dir(text_parent);
     }
 
     #[test]
     fn read_markdown_file_returns_serializable_snapshot() {
         let markdown_path = temp_file_path("release-notes.md");
         fs::write(&markdown_path, "## Release").expect("write markdown fixture");
+        let parent_directory = markdown_path
+            .parent()
+            .expect("temporary file should have a parent")
+            .to_path_buf();
 
         let snapshot = read_markdown_file(&markdown_path).expect("markdown file snapshot");
         assert_eq!(snapshot.file_name, "release-notes.md");
@@ -210,5 +233,6 @@ mod tests {
         );
 
         let _ = fs::remove_file(markdown_path);
+        let _ = fs::remove_dir(parent_directory);
     }
 }
