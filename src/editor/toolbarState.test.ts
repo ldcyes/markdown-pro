@@ -9,7 +9,7 @@ import {
 import { TextSelection } from "prosemirror-state";
 import { EditorState } from "prosemirror-state";
 import { editorSchema } from "./schema.js";
-import { getActiveToolbarState, insertTable } from "./toolbarState.js";
+import { deleteTableCommand, getActiveToolbarState, insertTable } from "./toolbarState.js";
 
 function applyCommand(
   state: EditorState,
@@ -189,4 +189,25 @@ test("insertTable creates a 3x3 table and table commands update it", () => {
 
   assert.equal(state.doc.firstChild?.childCount, 3);
   assert.equal(state.doc.firstChild?.firstChild?.childCount, 3);
+});
+
+test("deleteTableCommand removes the entire active table", () => {
+  const doc = editorSchema.nodeFromJSON({
+    type: "doc",
+    content: [{ type: "paragraph", content: [] }],
+  });
+
+  let state = EditorState.create({
+    schema: editorSchema,
+    doc,
+    selection: TextSelection.create(doc, 1),
+  });
+
+  state = applyCommand(state, insertTable);
+  assert.equal(getActiveToolbarState(state).table, true);
+
+  state = applyCommand(state, deleteTableCommand);
+
+  assert.equal(getActiveToolbarState(state).table, false);
+  assert.notEqual(state.doc.firstChild?.type.name, "table");
 });

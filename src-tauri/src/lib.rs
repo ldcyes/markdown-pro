@@ -7,9 +7,9 @@ use std::{
 };
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager};
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use tauri::RunEvent;
+use tauri::{AppHandle, Emitter, Manager};
 
 const OPEN_MARKDOWN_FILES_EVENT: &str = "markdown-pro://open-files";
 
@@ -32,6 +32,78 @@ fn is_markdown_file(path: &Path) -> bool {
             .unwrap_or(false)
 }
 
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn percent_decode_path(path: &str) -> Option<String> {
+    let bytes = path.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let high = hex_value(*bytes.get(index + 1)?)?;
+            let low = hex_value(*bytes.get(index + 2)?)?;
+            decoded.push((high << 4) | low);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+
+    String::from_utf8(decoded).ok()
+}
+
+fn file_url_to_path(raw_argument: &str) -> Option<PathBuf> {
+    const FILE_SCHEME: &str = "file://";
+
+    if raw_argument.len() < FILE_SCHEME.len()
+        || !raw_argument[..FILE_SCHEME.len()].eq_ignore_ascii_case(FILE_SCHEME)
+    {
+        return None;
+    }
+
+    let path_part = raw_argument[FILE_SCHEME.len()..]
+        .split(['?', '#'])
+        .next()
+        .unwrap_or_default();
+    let path_part = if path_part.len() >= "localhost/".len()
+        && path_part[.."localhost/".len()].eq_ignore_ascii_case("localhost/")
+    {
+        &path_part["localhost".len()..]
+    } else {
+        path_part
+    };
+    let decoded = percent_decode_path(path_part)?;
+
+    #[cfg(windows)]
+    {
+        if let Some(path_without_slash) = decoded.strip_prefix('/') {
+            if path_without_slash.as_bytes().get(1) == Some(&b':') {
+                return Some(PathBuf::from(path_without_slash));
+            }
+        }
+
+        if decoded.starts_with('/') {
+            Some(PathBuf::from(decoded))
+        } else {
+            Some(PathBuf::from(format!("//{decoded}")))
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        Some(PathBuf::from(decoded))
+    }
+}
+
 fn resolve_markdown_path(argument: &OsStr, cwd: &Path) -> Option<PathBuf> {
     let raw_argument = argument.to_str()?;
 
@@ -39,7 +111,7 @@ fn resolve_markdown_path(argument: &OsStr, cwd: &Path) -> Option<PathBuf> {
         return None;
     }
 
-    let candidate = PathBuf::from(raw_argument);
+    let candidate = file_url_to_path(raw_argument).unwrap_or_else(|| PathBuf::from(raw_argument));
     let resolved = if candidate.is_absolute() {
         candidate
     } else {
@@ -123,7 +195,10 @@ fn reveal_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     }
 }
 
-fn emit_opened_markdown_files<R: tauri::Runtime>(app: &AppHandle<R>, files: Vec<OpenedMarkdownFile>) {
+fn emit_opened_markdown_files<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    files: Vec<OpenedMarkdownFile>,
+) {
     if files.is_empty() {
         return;
     }
@@ -147,7 +222,8 @@ pub fn run() {
         .run(|app, event| {
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             if let RunEvent::Opened { urls } = event {
-                let files = read_markdown_files(urls.into_iter().filter_map(|url| url.to_file_path().ok()));
+                let files =
+                    read_markdown_files(urls.into_iter().filter_map(|url| url.to_file_path().ok()));
                 emit_opened_markdown_files(app, files);
             }
 
@@ -205,12 +281,46 @@ mod tests {
             &cwd,
         );
 
-        assert_eq!(paths, vec![fs::canonicalize(&markdown_path).expect("canonical markdown path")]);
+        assert_eq!(
+            paths,
+            vec![fs::canonicalize(&markdown_path).expect("canonical markdown path")]
+        );
 
         let _ = fs::remove_file(markdown_path);
         let _ = fs::remove_file(text_path);
         let _ = fs::remove_dir(cwd);
         let _ = fs::remove_dir(text_parent);
+    }
+
+    #[test]
+    fn collect_markdown_paths_accepts_file_urls_from_shell_open_events() {
+        let directory = std::env::temp_dir().join(format!(
+            "markdown-pro-url-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time before unix epoch")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&directory).expect("create temporary directory");
+        let markdown_path = directory.join("shell opened.md");
+        fs::write(&markdown_path, "# Shell").expect("write markdown fixture");
+
+        let file_url = format!(
+            "file://{}",
+            markdown_path.to_string_lossy().replace(' ', "%20")
+        );
+        let paths = collect_markdown_paths(
+            [OsStr::new("markdown-pro"), OsStr::new(&file_url)],
+            &directory,
+        );
+
+        assert_eq!(
+            paths,
+            vec![fs::canonicalize(&markdown_path).expect("canonical markdown path")]
+        );
+
+        let _ = fs::remove_file(markdown_path);
+        let _ = fs::remove_dir(directory);
     }
 
     #[test]
@@ -227,10 +337,7 @@ mod tests {
         assert_eq!(snapshot.content, "## Release");
         assert_eq!(snapshot.size, "## Release".len() as u64);
         assert!(snapshot.last_modified > 0);
-        assert_eq!(
-            snapshot.path,
-            markdown_path.to_string_lossy().into_owned()
-        );
+        assert_eq!(snapshot.path, markdown_path.to_string_lossy().into_owned());
 
         let _ = fs::remove_file(markdown_path);
         let _ = fs::remove_dir(parent_directory);

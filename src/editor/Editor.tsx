@@ -110,6 +110,7 @@ import { applyOpenedMarkdownFiles } from "./openedFiles.js";
 import { editorSchema } from "./schema";
 import {
   getActiveToolbarState,
+  deleteTableCommand,
   insertTable,
   isNodeActive,
 } from "./toolbarState.js";
@@ -590,12 +591,9 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     setActiveTabId(tabId);
   });
 
-  // When activeTabId changes, reload editor state (with undo history if available)
-  useEffect(() => {
+  const loadTabIntoEditor = useEffectEvent((tab: TabState) => {
     const view = viewRef.current;
     if (!view) return;
-    const tab = tabs.find((t) => t.id === activeTabId);
-    if (!tab) return;
 
     let nextState: EditorState;
     if (tab.editorStateJSON) {
@@ -611,6 +609,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     } else {
       nextState = createEditorState(tab.content);
     }
+
     view.updateState(nextState);
     const nextOutlineItems = extractOutline(nextState.doc);
     setActiveToolbarState(getActiveToolbarState(nextState));
@@ -623,6 +622,13 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
           ? "Restored draft"
           : "Editing draft",
     );
+  });
+
+  // When activeTabId changes, reload editor state (with undo history if available)
+  useEffect(() => {
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+    loadTabIntoEditor(tab);
   }, [activeTabId]);
 
   const handleOpenFile = useEffectEvent(async () => {
@@ -796,6 +802,14 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
 
       setTabs(result.tabs);
       setActiveTabId(result.activeTabId);
+
+      if (result.activeTabId === activeTabId) {
+        const refreshedActiveTab = result.tabs.find((tab) => tab.id === result.activeTabId);
+        if (refreshedActiveTab) {
+          loadTabIntoEditor(refreshedActiveTab);
+        }
+      }
+
       setStatusMessage(`Opened ${result.openedFileName ?? "Markdown file"}`);
     },
   );
@@ -965,6 +979,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
     { disabled: !activeToolbarState.table, icon: Columns3, id: "col-after", label: "+Col\u2192", onClick: () => runEditorCommand(addColumnAfter) },
     { disabled: !activeToolbarState.table, icon: Trash2, id: "del-row", label: "Del Row", onClick: () => runEditorCommand(deleteRow) },
     { disabled: !activeToolbarState.table, icon: Trash2, id: "del-col", label: "Del Col", onClick: () => runEditorCommand(deleteColumn) },
+    { disabled: !activeToolbarState.table, icon: Trash2, id: "del-table", label: "Del Table", onClick: () => runEditorCommand(deleteTableCommand) },
   ];
 
   const exportGroup: ToolButton[] = [

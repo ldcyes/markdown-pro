@@ -51,11 +51,23 @@ export function applyOpenedMarkdownFiles<T extends OpenedFileTabState>(
   let openedFileName: string | null = null;
 
   uniqueFiles.forEach((file, index) => {
-    const existingTab = nextTabs.find((tab) => tab.sourcePath?.toLowerCase() === file.path.toLowerCase());
+    const existingTabIndex = nextTabs.findIndex((tab) => tab.sourcePath?.toLowerCase() === file.path.toLowerCase());
+    const existingTab = existingTabIndex >= 0 ? nextTabs[existingTabIndex] : null;
     if (existingTab) {
+      const refreshedTab = {
+        ...existingTab,
+        fileName: normalizeMarkdownFilename(file.fileName),
+        content: file.content,
+        savedContent: file.content,
+        updatedAt: file.lastModified,
+        editorStateJSON: null,
+        sourcePath: file.path,
+      };
+      nextTabs[existingTabIndex] = refreshedTab;
+
       if (activeTabId == null) {
-        activeTabId = existingTab.id;
-        openedFileName = normalizeMarkdownFilename(existingTab.fileName);
+        activeTabId = refreshedTab.id;
+        openedFileName = refreshedTab.fileName;
       }
       return;
     }

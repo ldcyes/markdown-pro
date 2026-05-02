@@ -1,6 +1,6 @@
 import { EditorState, TextSelection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { isInTable } from "prosemirror-tables";
+import { deleteTable, isInTable } from "prosemirror-tables";
 import { editorSchema } from "./schema.js";
 
 // Define Command type locally
@@ -144,6 +144,8 @@ export const insertTable: Command = (state, dispatch) => {
     return false;
   }
 };
+
+export const deleteTableCommand: Command = (state, dispatch) => deleteTable(state, dispatch);
 
 export function getActiveToolbarState(state: EditorState): ActiveToolbarState {
   let headingLevel: number | null = null;
