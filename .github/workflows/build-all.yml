@@ -27,6 +27,8 @@ jobs:
         run: pnpm install
 
       - name: Build Web
+        env:
+          VITE_BASE_PATH: /markdown-pro/
         run: pnpm build
 
       - name: Upload Web artifacts
