@@ -228,7 +228,7 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
 
   release:
-    needs: [build-android, build-ios, build-tauri]
+    needs: [build-tauri]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -262,13 +262,9 @@ jobs:
             | Windows | `.msi` installer or `.exe` (NSIS) |
             | macOS | `.dmg` |
             | Linux | `.deb` or `.AppImage` |
-            | Android | `.apk` |
-            | iOS | simulator `.zip` |
           draft: false
           prerelease: false
           files: |
-            android-apks/**
-            ios-simulator/**
             windows-installer/**
             macos-dmg/**
             linux-packages/**
