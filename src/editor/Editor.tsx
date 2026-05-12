@@ -86,7 +86,6 @@ import {
   exportToDocx,
   exportToPdf,
   formatFileSize,
-  loadDraftFromLocalStorage,
   normalizeMarkdownFilename,
   openMarkdownFile,
   saveDraftToLocalStorage,
@@ -94,7 +93,7 @@ import {
   saveMarkdownFileWithHandle,
   saveMarkdownFileWithPicker,
 } from "../utils/fileSystem.js";
-import { DEFAULT_MARKDOWN } from "./defaultMarkdown";
+import { createBlankEditorTab, type EditorTabState } from "./initialTab.js";
 import {
   markdownToProseMirror,
   proseMirrorToMarkdown,
@@ -178,16 +177,7 @@ const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform)
 const modKey = isMac ? "\u2318" : "Ctrl";
 
 /** Each open tab tracks its own content, dirty state, and editor state */
-interface TabState {
-  id: string;
-  fileName: string;
-  content: string;
-  savedContent: string;
-  updatedAt: number;
-  editorStateJSON: unknown | null; // JSON snapshot of ProseMirror state for restoring undo history
-  fileHandle: unknown | null; // FileSystemFileHandle for saving to disk
-  sourcePath: string | null;
-}
+type TabState = EditorTabState;
 
 let tabIdCounter = 0;
 function nextTabId() {
@@ -405,18 +395,7 @@ interface EditorProps {
 export function Editor({ theme, onThemeToggle }: EditorProps) {
   // Initialize tabs
   const [tabs, setTabs] = useState<TabState[]>(() => {
-    const draft = loadDraftFromLocalStorage();
-    const content = draft?.content ?? DEFAULT_MARKDOWN;
-    const fileName = draft?.fileName ?? "untitled.md";
-    const id = nextTabId();
-    return [{
-      id, fileName, content,
-      savedContent: content,
-      updatedAt: draft?.updatedAt ?? 0,
-      editorStateJSON: null,
-      fileHandle: null,
-      sourcePath: null,
-    }];
+    return [createBlankEditorTab(nextTabId)];
   });
   const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
   const [autoSave, setAutoSave] = useState(() => {
@@ -539,22 +518,9 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
 
   // ─── Tab operations ───
   const handleNewTab = useEffectEvent(() => {
-    const id = nextTabId();
-    const content = DEFAULT_MARKDOWN;
-    setTabs((prev) => [
-      ...prev,
-      {
-        id,
-        fileName: "untitled.md",
-        content,
-        savedContent: content,
-        updatedAt: 0,
-        editorStateJSON: null,
-        fileHandle: null,
-        sourcePath: null,
-      },
-    ]);
-    setActiveTabId(id);
+    const nextTab = createBlankEditorTab(nextTabId);
+    setTabs((prev) => [...prev, nextTab]);
+    setActiveTabId(nextTab.id);
   });
 
   const handleCloseTab = useEffectEvent((tabId: string) => {
@@ -817,7 +783,7 @@ export function Editor({ theme, onThemeToggle }: EditorProps) {
   // Mount ProseMirror
   useEffect(() => {
     if (!mountRef.current) return;
-    const initContent = tabs.find((t) => t.id === activeTabId)?.content ?? DEFAULT_MARKDOWN;
+    const initContent = tabs.find((t) => t.id === activeTabId)?.content ?? "";
     const view = new EditorView(mountRef.current, {
       state: createEditorState(initContent),
       editable: () => true,

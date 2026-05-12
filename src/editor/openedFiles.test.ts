@@ -60,6 +60,21 @@ test("applyOpenedMarkdownFiles keeps the current tabs and appends new files when
   assert.equal(result.activeTabId, "tab-8");
 });
 
+test("applyOpenedMarkdownFiles appends to an already open blank tab for shell opens", () => {
+  const result = applyOpenedMarkdownFiles(
+    [createTab({ id: "tab-1", content: "", savedContent: "" })],
+    [createOpenedFile()],
+    () => "tab-2",
+  );
+
+  assert.equal(result.tabs.length, 2);
+  assert.equal(result.tabs[0].id, "tab-1");
+  assert.equal(result.tabs[0].content, "");
+  assert.equal(result.tabs[1].id, "tab-2");
+  assert.equal(result.tabs[1].fileName, "today.md");
+  assert.equal(result.activeTabId, "tab-2");
+});
+
 test("applyOpenedMarkdownFiles activates an existing path match instead of duplicating the tab", () => {
   const result = applyOpenedMarkdownFiles(
     [createTab({ id: "tab-3", fileName: "today.md", sourcePath: "c:/notes/today.md" })],
