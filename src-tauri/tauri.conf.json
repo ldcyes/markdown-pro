@@ -55,7 +55,20 @@
   "plugins": {},
   "app": {
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "main-file-open-events",
+          "description": "Allow the main editor to receive files opened by another desktop instance.",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "core:event:allow-listen",
+            "core:event:allow-unlisten"
+          ]
+        }
+      ]
     },
     "windows": [
       {
