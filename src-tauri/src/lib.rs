@@ -7,9 +7,11 @@ use std::{
 };
 
 use serde::Serialize;
+#[cfg(desktop)]
+use tauri::Manager;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use tauri::RunEvent;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 const OPEN_MARKDOWN_FILES_EVENT: &str = "markdown-pro://open-files";
 
@@ -187,6 +189,7 @@ fn get_startup_markdown_files() -> Vec<OpenedMarkdownFile> {
     collect_startup_markdown_files()
 }
 
+#[cfg(desktop)]
 fn reveal_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -204,17 +207,22 @@ fn emit_opened_markdown_files<R: tauri::Runtime>(
     }
 
     let _ = app.emit(OPEN_MARKDOWN_FILES_EVENT, files);
+    #[cfg(desktop)]
     reveal_main_window(app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, arguments, cwd| {
-            let paths = collect_markdown_paths(arguments, Path::new(&cwd));
-            let files = read_markdown_files(paths);
-            emit_opened_markdown_files(app, files);
-        }))
+    let builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, arguments, cwd| {
+        let paths = collect_markdown_paths(arguments, Path::new(&cwd));
+        let files = read_markdown_files(paths);
+        emit_opened_markdown_files(app, files);
+    }));
+
+    builder
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![get_startup_markdown_files])
         .build(tauri::generate_context!())
